@@ -118,7 +118,8 @@ async function loadConfigs() {
 	shuffle(NETWORK_CONFIGS); //random order of topologies
 	Server.initialiseTopologyLayoutIndexes(); // initialises Server.CurrentTopologyLayoutIndexes and Server.CurrentTopologyIndices
 	////console.log(NETWORK_CONFIGS);
-	console.log("ready");
+	console.log("Topologies Loaded");
+	console.log("Ready");
 }
 
 function createLaplacian(connections) {

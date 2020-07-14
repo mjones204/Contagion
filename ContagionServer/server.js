@@ -1,9 +1,10 @@
 //NOTE: A lot of the human vs human player code is no longer bug-free due to changes in specification. It will work with some moderate changes but NOT as-is.
 
-Server.LocalMode = false; //Run on local machine or internet-facing
+Server.LocalMode = true; //Run on local machine or internet-facing
 Server.NeutralMode = true; //Supports neutral nodes (this is the default now)
 Server.TrialMode = false; //Running controlled trials with people
-Server.ExperimentMode = true; //For things like monte carlo...
+Server.ExperimentMode = false; //For things like monte carlo...
+Server.EnableAWS = true; //Connects to AWS
 Server.NumberOfNodes = 20; //Changing this may require some refactoring...
 Server.RemoveOldNodes = false; //TODO: Update game logic (DB side done)
 Server.TestMoves = [ //[ 13, 2, 6, 14, 9, 10, 16, 15, 8, 18 ],
@@ -48,6 +49,33 @@ var express = require("express");
 var nodemailer = require('nodemailer');
 var extMath = require('./math.min');
 var seededRNGGenerator = require('./seedrandom.min');
+
+// AWS and Mechanical Turk setup
+var AWS = require("aws-sdk");
+if (Server.EnableAWS) {
+  // Load config
+  AWS.config.loadFromPath('./aws_config.json');
+  fs = require('fs');
+  // Use sandbox
+  var endpoint = 'https://mturk-requester-sandbox.us-east-1.amazonaws.com';
+  // Uncomment this line to use in production
+  // endpoint = 'https://mturk-requester.us-east-1.amazonaws.com';
+  // Connect to sandbox
+  var mturk = new AWS.MTurk({
+    endpoint: endpoint
+  });
+  // Test ability to connect to MTurk by checking account balance
+  mturk.getAccountBalance(function (err, data) {
+    if (err) {
+      console.log("Failed to connect to AWS MTurk");
+      console.log(err.message);
+    } else {
+      // Sandbox balance check will always return $10,000
+      console.log("Connected to AWS MTurk");
+      console.log('Account balance: ' + data.AvailableBalance);
+    }
+  })
+}
 
 var app = express();
 var PORT = process.env.PORT || 5001;
@@ -108,7 +136,7 @@ Server.LoadExperiment = function (times) {
     console.error("Error Initialising!");
     return;
   }
-  //When this has a non-zero value, loading complete
+  //When this has a non-zero value, topologies have been loaded
   if (configData.laplacians.length != 0) {
     var experimentAi = require('./ExperimentalAi.js');
     setTimeout(() => {

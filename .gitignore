@@ -4,6 +4,9 @@
 *.ttf
 old config files/
 
+# AWS credentials config
+ContagionServer/aws_config.json
+
 # Dependency directories
 node_modules/
 jspm_packages/

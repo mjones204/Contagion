@@ -22,9 +22,9 @@
   "homepage": "https://github.com/EmpireOfTheTsun/Contagion#readme",
   "dependencies": {
     "async": "^2.6.1",
+    "aws-sdk": "2.713.0",
     "chi-squared-test": "^1.1.0",
     "clone": "^2.1.2",
-    "csv": "^3.1.0",
     "csvtojson": "^2.0.8",
     "express": "^4.16.3",
     "http": "0.0.0",
