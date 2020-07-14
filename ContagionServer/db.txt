@@ -1,0 +1,43 @@
+netowrk topology ID / random
+infected state of each node
+player's moves
+player's ID
+
+1 Master Table for all games
+
+GameID(Prim), Timestamp, player1ID, player2ID, topologyID (foreign?), seed(?)
+
+1 Moves Table for all games!
+
+GameID, Round Number, IDs of flipped nodes this round (all for round 0),  P1Moves, P2Moves, P1 Time, P2 Time, [P1 Deliberations], [P2 Deliberations],
+ 
+CREATE TABLE master_games_table(game_id CHAR(36), timestamp VARCHAR(23), player_one_id CHAR(36), player_two_id CHAR(36), topology_instance_id VARCHAR(36)); //NO PRIMARY KEY!
+
+//NOTES: Flipped must be able to store N + (N-10)[tens column] + (N-100)[hundreds column?] + (N-1)[comma separator]
+MAX 50 nodes = 50 + 40 + 49 = 139 
+MAX 5 moves = 5 * 2[biggest ID length] + 4[comma sep] = 14
+
+CREATE TABLE player_actions_table(FOREIGN KEY (game_id) REFERENCES master_games_table(game_id), 
+round_number VARCHAR(2), 
+flipped_nodes VARCHAR(139), 
+p1_moves VARCHAR(14), 
+p2_moves VARCHAR(14), 
+p1_time VARCHAR(6), 
+p2_time VARCHAR(6), PRIMARY KEY (game_id, round_number); 
+
+Sorry, Monday Me. Luckily the other fixes are easy. Best way is to have ANOTHER table for player moves, but blimey that sounds overcomplicated at this point. Better check with someone.
+I'll store them as arrays for now, can chat to Seb/Valerio about it.
+
+ACTUAL ONE USED 
+CREATE TABLE player_actions_table(game_id char(36), FOREIGN KEY (game_id) REFERENCES master_games_table(game_id) ON DELETE CASCADE, round_number VARCHAR(2), flipped_nodes VARCHAR(139), p1_moves VARCHAR(14), p2_moves VARCHAR(14), p1_time VARCHAR(6), p2_time VARCHAR(6), PRIMARY KEY (game_id, round_number));
+
+we aren't recording the final state, hmm...
+
+CREATE TABLE topology_initial_states(topology_id VARCHAR(3), instance_id VARCHAR(36), infected_nodes VARCHAR(74), PRIMARY KEY (topology_id, instance_id));
+
+25nodes = 2*25 + 24 (comma sep)
+
+MAKE TOPOLOGY ID FOREIGN IN GAMESTABLE
+PROBABLY CHANGE ORDER OF FLIPPEDNODES AND PLAYERMOVES IN DB
+
+INSERT INTO master_games_table VALUES ("18f4a367-1eec-4745-82c7-0de00e889794", "kek", 4ffe0876-2545-4b8b-8b0d-73c79b065b4d, afd48c32-cb09-4f0c-8220-78e483a68611, 2);

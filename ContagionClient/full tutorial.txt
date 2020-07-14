@@ -1,0 +1,27 @@
+Full Tutorial:
+
+OVERALL CONCEPT:
+Gain the most points after 10 rounds to win!
+Gain points for each node you control ('infected' nodes) at the end of each round.
+
+HOW TO PLAY:
+Left Click on a node to add a token to increase your chances of infecting that node (you have 5 tokens)
+Right Click (or Ctrl Click, two finger-click on Mac) to remove a token.
+NOTE: From round 2 onwards, you can only change ONE token between rounds.
+Click "Begin Round" to submit your moves. You may have to wait for your opponent.
+If you wait more than 30s, something has gone wrong, please refresh!
+
+HOW TO WIN:
+You can convert nodes in 2 ways:
+1. Each node you control (red) connected to that node improves the chance of infecting it(NB: the current colour does NOT have an effect)
+2. Assign tokens to that node.
+The chance of each node being yours at the end of a round is calculated as follows:
+(# of player nodes connected + player of tokens / # enemy nodes connected + enemy tokens)
+So a node with 3 neighbours of your colour, and 2 of the enemy colours has a 60% chance of being yors at the end of the round.
+After each round, enemy actions for last round are shown as black orbiting tokens.
+
+BEST STRATEGY:
+You have to find this out yourself! Experiment, lose a few times, build your strategy...
+
+If anything is unclear, please leave a comment and I will update this!
+If you're having real trouble playing, let me (Lewis) know! Big curly hair, first desk on the right as you enter the level 4 research labs from the Burgess side. Pizza may or may not be involved later for partiularly helpful players!

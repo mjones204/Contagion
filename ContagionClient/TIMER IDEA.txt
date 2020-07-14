@@ -1,0 +1,15 @@
+Timer Strategy:
+
+Keep it so P1 gets the config at start.
+60s timer for them
+
+	AFTER 60s, if no player, 'wait' short time for AI
+	Else another [remaining time]s for P2
+	
+OR
+	
+	AFTER 40s? if no player, don't let any new one join. Then AI plays after short time?
+	else same. Less waiting for P1, but harder to implement.
+	
+
+THEN 30s each?
