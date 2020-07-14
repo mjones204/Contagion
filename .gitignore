@@ -3,3 +3,16 @@
 *.mp3
 *.ttf
 old config files/
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# AWS credentials config
+aws_config.json
+
+# Visual Studio Code directories
+.vscode/
+
+# Log files
+*.log
