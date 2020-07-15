@@ -293,7 +293,14 @@ a:hover{
     line-height: 25px;
 	display: block;
     margin-left: auto;
-
+}
+#modal_cash_out{
+    top: 20px;
+    font-size: 50px;
+    text-align: center;
+    line-height: 25px;
+	display: block;
+    margin-left: auto;
 }
 #modal_content_container{
 	overflow: auto;

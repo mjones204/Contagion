@@ -65,13 +65,19 @@ window.Modal = {
 		if (thing == "endgame"){
 			Simulations.Chart = buildChart(Simulations.ScoreLists[0], Simulations.ScoreLists[1]);
 		}
+	},
+	showCompletionCode: function() {
+		publish("sound/button");
+		Simulations.requestCompletionCode();
 	}
 };
 
 //$("#modal_bg").onclick = Modal.hide;
 $("#modal_close").onclick = Modal.hide;
+$("#modal_cash_out").onclick = Modal.showCompletionCode;
 _stopPropButton($("#modal_bg"));
 _stopPropButton($("#modal_close"));
+_stopPropButton($("#modal_cash_out"));
 
 // Show big collected modals
 subscribe("modal/bonus", function(){

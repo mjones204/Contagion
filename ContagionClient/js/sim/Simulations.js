@@ -88,18 +88,24 @@ function Simulations(){
 				Simulations.updateState(message.payload);
 				break;
 			case "GAME_END_TOKEN":
-					Simulations.gameOver(message.payload);
-					break;
+				Simulations.gameOver(message.payload);
+				break;
 			case "TIMER_TOKEN":
-					if (!Simulations.awaitingResponse){
-						var payload = [0, message.payload[1]-1];
-						//Timeout to allow for visual transitions
-						setTimeout(Simulations.startTimer, 1000, payload);
-					}
-					else{
-						Simulations.startTimer(message.payload);
-					}
-					break;
+				if (!Simulations.awaitingResponse){
+					var payload = [0, message.payload[1]-1];
+					//Timeout to allow for visual transitions
+					setTimeout(Simulations.startTimer, 1000, payload);
+				}
+				else{
+					Simulations.startTimer(message.payload);
+				}
+				break;
+			case "COMPLETION_CODE":
+				console.log("Your Completion Code: " + message.payload);
+				break;
+			case "COMPLETION_CODE_ERROR":
+				console.log("Error getting completion code");
+				break;
 		}
 	}
 	
@@ -157,6 +163,11 @@ function Simulations(){
 			}
 			Simulations.awaitingResponse = true;
 		}
+	}
+
+	//Request MTurk completion code from server
+	Simulations.requestCompletionCode = function(){
+		Simulations.sendServerMessage(new Message(Simulations.Username,"NEW_COMPLETION_CODE"));
 	}
 
 	Simulations.formatConfig = function(config){
@@ -276,12 +287,12 @@ function Simulations(){
 				try{
 					var temp = Simulations.getConfig();
 					if(temp == null){
-						console.log("getCOnfig null");
+						console.log("getConfig null");
 						publish("START");
 						return;
 					}
 					else{
-						console.log("getCOnfig notnull");
+						console.log("getConfig notnull");
 						config = temp;
 					}
 				}
@@ -1326,7 +1337,6 @@ function Sim(config){
 		payload.push(action);
 		Simulations.sendServerMessage(new Message(payload,"CLICK_TOKEN"));
 	}
-
 
 	self.getFriendsOf = function(peep){
 

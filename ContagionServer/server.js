@@ -1,10 +1,10 @@
 //NOTE: A lot of the human vs human player code is no longer bug-free due to changes in specification. It will work with some moderate changes but NOT as-is.
 
-Server.LocalMode = true; //Run on local machine or internet-facing
+Server.LocalMode = false; //Run on local machine or internet-facing
 Server.NeutralMode = true; //Supports neutral nodes (this is the default now)
 Server.TrialMode = false; //Running controlled trials with people
 Server.ExperimentMode = false; //For things like monte carlo...
-Server.EnableAWS = true; //Connects to AWS
+Server.EnableAWS = false; //Connects to AWS
 Server.NumberOfNodes = 20; //Changing this may require some refactoring...
 Server.RemoveOldNodes = false; //TODO: Update game logic (DB side done)
 Server.TestMoves = [ //[ 13, 2, 6, 14, 9, 10, 16, 15, 8, 18 ],
@@ -153,25 +153,39 @@ if (Server.ExperimentMode) {
   Server.LoadExperiment(0);
 }
 
+//Handles storing of data to database
+Server.sendSqlQuery = async function (query) {
+  if (!Server.LocalMode && !Server.ExperimentMode) { //Doesn't use the database if we're running locally/experiments
+    console.info(query);  
+    try {
+      var res = await client.query(query);
+      return res;
+    } catch (err) {
+      Server.databaseFailure(err, query);
+      return false;
+    }
+  }
+}
+
 //Handles storing of game data to database
-Server.sendSqlQuery = function (query, game) {
+Server.sendSqlQueryGame = function (query, game) {
   if (!Server.LocalMode && !Server.ExperimentMode) { //Doesn't use the database if we're running locally/experiments
     console.info(query);
     try {
       client.query(query, function (err, result) {
         if (err) {
           //Sends email if failure adding to db
-          Server.databaseFailure(err, game, query);
+          Server.databaseFailureGame(err, game, query);
         }
       });
     } catch (err) {
-      Server.databaseFailure(err, game, query);
+      Server.databaseFailureGame(err, game, query);
     }
   }
 }
 
-//Emails us if there's a problem with the DB
-Server.databaseFailure = function (err, game, query) {
+//Emails us if there's a problem with the DB and handles game logic
+Server.databaseFailureGame = function (err, game, query) {
   console.error(err);
 
   //only emails at most once per hour
@@ -190,6 +204,17 @@ Server.databaseFailure = function (err, game, query) {
   } catch (err) {}
 
   game.killGame(false, game);
+}
+
+//Emails us if there's a problem with the DB
+Server.databaseFailure = function (err, query) {
+  console.error(err);
+
+  //only emails at most once per hour
+  if (Date.now() - Server.lastAlertTime > 3600000) {
+    Server.lastAlertTime = Date.now();
+    Server.sendMail("URGENT: Error Adding to Database! " + query, err);
+  }
 }
 
 //Sends an email to the contagion account for critical information.
@@ -308,7 +333,7 @@ GameState.prototype.addGameToDatabase = function (query) {
     this.playerTwoLayoutID = this.playerOneLayoutID;
   }
   var query = `INSERT INTO master_games_table VALUES ('${this.gameID}', '${timestamp}', '${p1id}', '${p2id}', '${infectedPeepsString}',  '${this.playerOneLayoutID}', '${this.playerTwoLayoutID}', '${Server.RemoveOldNodes}');`;
-  Server.sendSqlQuery(query, this);
+  Server.sendSqlQueryGame(query, this);
 }
 
 //updates the database game record if P1 or P2 changes
@@ -316,7 +341,7 @@ GameState.prototype.updateGameDatabaseEntry = function () {
   var p1id = (this.playerOne != null && this.playerOne != "AI") ? this.playerOne.id : "AI";
   var p2id = (this.playerTwo != null && this.playerTwo != "AI") ? this.playerTwo.id : "AI";
   var query = `UPDATE master_games_table SET player_one_id = '${p1id}', player_two_id = '${p2id}' WHERE game_id = '${this.gameID}';`;
-  Server.sendSqlQuery(query, this);
+  Server.sendSqlQueryGame(query, this);
 }
 
 //Adds a new row in player_actions_table to record the actions taken this round
@@ -354,7 +379,7 @@ GameState.prototype.addMovesToDatabase = function () {
   });
 
   var query = `INSERT INTO player_actions_table VALUES ('${this.gameID}', ${this.roundNumber}, '${this.flippedNodes}', '${this.playerOneMoves}' ,'${this.playerTwoMoves}', ${this.playerOneTime}, ${this.playerTwoTime}, '${p1Nodes}', '${p2Nodes}');`;
-  Server.sendSqlQuery(query, this);
+  Server.sendSqlQueryGame(query, this);
   //Resets flipped nodes for next round
   this.flippedNodes = [];
 }
@@ -490,7 +515,7 @@ GameState.prototype.registerClick = function (playerID, nodeID, action) {
   //milliseconds since game start
   var timestamp = Date.now() - this.gameStartTime;
   var query = `INSERT INTO player_clicks_table VALUES ('${this.gameID}', '${playerID}', '${nodeID}', '${action}', '${timestamp}', '${this.roundNumber}');`;
-  Server.sendSqlQuery(query, this);
+  Server.sendSqlQueryGame(query, this);
 }
 
 //Removes game from the server's list of active games
@@ -1442,6 +1467,50 @@ Server.registerClick = function (payload, ws) {
   } //NYCON why does this fail on AI? UPDATE: does this still fail?
 }
 
+//Gets a completion code from the database and return to client
+Server.sendCompletionCodeToClient = async function(username, ws) {
+  var completion_code = await Server.getCompletionCodeForPlayer(username, ws);
+  if(completion_code) {
+    Server.sendClientMessage(new Message(completion_code, "COMPLETION_CODE"), ws);
+  }
+  else {
+    Server.sendClientMessage(new Message("", "COMPLETION_CODE_ERROR"), ws);
+    console.log("Error getting completion code for player: " + username);
+  }
+}
+
+//Retrieves a player's completion code from the database by looking up their unique user id, if no match found, generates and saves new one
+Server.getCompletionCodeForPlayer = async function(username, ws) {
+  // query db to see if completion code already exists for player id
+  var query = "SELECT * FROM mturk_completion_table WHERE player_id = '" + username + "'";
+  var result = await Server.sendSqlQuery(query);
+  // no completion code for user id found, create one
+  if(!result || result.rows.length <= 0) {
+    console.log("No completion code for player: " + username + " found, generating new one");
+    var completion_code = Server.generateCompletionCode();
+    var timestamp = (new Date()).toISOString().slice(0, -1);
+    var query = `INSERT INTO mturk_completion_table VALUES ('${timestamp}', '${username}', '${completion_code}');`;
+    var result2 = await Server.sendSqlQuery(query);
+    // insert failed
+    if(!result || result2.rowCount != 1) {
+      return false;
+    }
+    // insert successful
+    else {
+      return completion_code;
+    }
+  }
+  else {
+    return result.rows[0].completion_code;
+  }
+}
+
+Server.generateCompletionCode = function() {
+  var id = "" + uuidv4();
+  var shortenedId = id.slice(id.length - 12);
+  return shortenedId;
+}
+
 //Handles messages from the client
 //ws parameter allows us to return a message to the client
 Server.ParseMessage = function (message, ws) {
@@ -1471,6 +1540,9 @@ Server.ParseMessage = function (message, ws) {
       break;
     case "HEARTBEAT":
       Server.registerHeartbeat(ws);
+      break;
+    case "NEW_COMPLETION_CODE":
+      Server.sendCompletionCodeToClient(message.payload, ws);
       break;
   }
 }
