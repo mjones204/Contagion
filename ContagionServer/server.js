@@ -100,6 +100,12 @@ const wss = new WebSocketServer({
 var client = null;
 //Doesn't log to database when local, as local is usually for testing. 
 if (!Server.LocalMode) {
+  if(!process.env.DATABASE_URL) {
+    console.log("DATABASE_URL is not initialised");
+    console.log("Initialising DATABASE_URL from db_config.json");
+    var dbConfig = require("./db_config.json");
+    process.env.DATABASE_URL = dbConfig.DATABASE_URL;
+  }
   const {
     Client
   } = require('pg');
