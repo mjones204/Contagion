@@ -102,7 +102,7 @@ var client = null;
 if (!Server.LocalMode) {
   if(!process.env.DATABASE_URL) {
     console.log("DATABASE_URL is not initialised");
-    console.log("Initialising DATABASE_URL from db_config.json");
+    console.log("Initialising DATABASE_URL from config");
     var dbConfig = require("./db_config.json");
     process.env.DATABASE_URL = dbConfig.DATABASE_URL;
   }
