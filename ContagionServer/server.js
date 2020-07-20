@@ -102,7 +102,7 @@ var client = null;
 if (!Server.LocalMode) {
   if(!process.env.DATABASE_URL) {
     console.log("DATABASE_URL is not initialised");
-    console.log("Initialising DATABASE_URL from config");
+    console.log("Initialising DATABASE_URL from db_config.json");
     var dbConfig = require("./db_config.json");
     process.env.DATABASE_URL = dbConfig.DATABASE_URL;
   }
@@ -118,23 +118,6 @@ if (!Server.LocalMode) {
 }
 
 var clone = require('clone'); //Allows deep cloning of objects (for parallel games with shared starting resources)
-module.exports = { //Allows other files to use the initialiseTopologyLayoutIndexes function
-  initialiseTopologyLayoutIndexes: function () {
-    Server.initialiseTopologyLayoutIndexes();
-  },
-  NeutralMode: Server.NeutralMode, //Allows other files to access these variables
-  LocalMode: Server.LocalMode,
-  NumberOfNodes: Server.NumberOfNodes
-
-};
-//Similarly to above, lets other files use these variables
-module.exports.NeutralMode = Server.NeutralMode;
-module.exports.LocalMode = Server.LocalMode;
-
-//Lets us access the config data processed in the NetworkConfigurations file
-configData = require('./NetworkConfigurations.js');
-serverConfigs = configData.configs;
-laplaciansList = configData.laplacians;
 
 //Handles waiting until the server has finished loading
 Server.LoadExperiment = function (times) {
@@ -162,44 +145,44 @@ if (Server.ExperimentMode) {
 //Handles storing of data to database
 Server.sendSqlQuery = async function (query) {
   if (!Server.LocalMode && !Server.ExperimentMode) { //Doesn't use the database if we're running locally/experiments
-    console.info(query);  
-    try {
-      var res = await client.query(query);
-      return res;
-    } catch (err) {
-      Server.databaseFailure(err, query);
-      return false;
-    }
+  console.info(query);  
+  try {
+    var res = await client.query(query);
+    return res;
+  } catch (err) {
+    Server.databaseFailure(err, query);
+    return false;
   }
+}
 }
 
 //Handles storing of game data to database
 Server.sendSqlQueryGame = function (query, game) {
   if (!Server.LocalMode && !Server.ExperimentMode) { //Doesn't use the database if we're running locally/experiments
-    console.info(query);
-    try {
-      client.query(query, function (err, result) {
-        if (err) {
-          //Sends email if failure adding to db
-          Server.databaseFailureGame(err, game, query);
-        }
-      });
-    } catch (err) {
-      Server.databaseFailureGame(err, game, query);
-    }
+  console.info(query);
+  try {
+    client.query(query, function (err, result) {
+      if (err) {
+        //Sends email if failure adding to db
+        Server.databaseFailureGame(err, game, query);
+      }
+    });
+  } catch (err) {
+    Server.databaseFailureGame(err, game, query);
   }
+}
 }
 
 //Emails us if there's a problem with the DB and handles game logic
 Server.databaseFailureGame = function (err, game, query) {
   console.error(err);
-
+  
   //only emails at most once per hour
   if (Date.now() - Server.lastAlertTime > 3600000) {
     Server.lastAlertTime = Date.now();
     Server.sendMail("URGENT: Error Adding to Database! " + query, err);
   }
-
+  
   //Makes players think the other disconnected
   //Suppress errors if either player cannot be reached.
   try {
@@ -208,14 +191,14 @@ Server.databaseFailureGame = function (err, game, query) {
   try {
     Server.sendResults(2, game, "disconnect");
   } catch (err) {}
-
+  
   game.killGame(false, game);
 }
 
 //Emails us if there's a problem with the DB
 Server.databaseFailure = function (err, query) {
   console.error(err);
-
+  
   //only emails at most once per hour
   if (Date.now() - Server.lastAlertTime > 3600000) {
     Server.lastAlertTime = Date.now();
@@ -223,17 +206,18 @@ Server.databaseFailure = function (err, query) {
   }
 }
 
+
 //Sends an email to the contagion account for critical information.
 Server.sendMail = function (emailSubject, errtext) {
   var fullText = "Error: " + errtext;
-
+  
   var mailOptions = {
     from: 'contagiongamesoton@gmail.com',
     to: 'contagiongamesoton@gmail.com', //Can be changed to whoever. May be better to setup forwarding on this account.
     subject: emailSubject,
     text: fullText
   };
-
+  
   transporter.sendMail(mailOptions, function (error, info) {
     if (error) {
       console.error(error);
@@ -241,7 +225,7 @@ Server.sendMail = function (emailSubject, errtext) {
       console.info('Email sent: ' + info.response);
     }
   });
-
+  
 }
 
 //Initialises a list containing the next layout to be used for each topology, so new players get different layouts
@@ -251,10 +235,31 @@ Server.initialiseTopologyLayoutIndexes = function () {
   for (var i = 0; i < serverConfigs.length; i++) { //If 2 topologies, will be length 2 (layouts do not count)
     topologyLayoutIndexes.push(0);
   }
-
+  
   Server.CurrentTopologyLayoutIndexes = topologyLayoutIndexes;
   Server.CurrentTopologyIndex = 0; //Similarly to how the list tracks layouts, this variable tracks the next topology to be used
 }
+
+module.exports = { 
+  //Allows other files to use the initialiseTopologyLayoutIndexes function
+  initialiseTopologyLayoutIndexes: function () {
+    Server.initialiseTopologyLayoutIndexes();
+  },
+  //Allows other files to send queries to database
+  sendSqlQuery: Server.sendSqlQuery,
+  NeutralMode: Server.NeutralMode, //Allows other files to access these variables
+  LocalMode: Server.LocalMode,
+  NumberOfNodes: Server.NumberOfNodes
+
+};
+//Similarly to above, lets other files use these variables
+module.exports.NeutralMode = Server.NeutralMode;
+module.exports.LocalMode = Server.LocalMode;
+
+//Lets us access the config data processed in the NetworkConfigurations file
+configData = require('./NetworkConfigurations.js');
+serverConfigs = configData.configs;
+laplaciansList = configData.laplacians;
 
 //Initialises most server-wide variables (some frequenly changing ones are declared at the top of the file)
 function Server() {
@@ -338,7 +343,10 @@ GameState.prototype.addGameToDatabase = function (query) {
     p2id += Server.AiStrategy;
     this.playerTwoLayoutID = this.playerOneLayoutID;
   }
-  var query = `INSERT INTO master_games_table VALUES ('${this.gameID}', '${timestamp}', '${p1id}', '${p2id}', '${infectedPeepsString}',  '${this.playerOneLayoutID}', '${this.playerTwoLayoutID}', '${Server.RemoveOldNodes}');`;
+  // converting topology string into topology and layout id integers
+  var p1_str = this.playerOneLayoutID.replace("Topology_newer", "").split("_");
+  var p2_str = this.playerTwoLayoutID.replace("Topology_newer", "").split("_");
+  var query = `INSERT INTO master_games_table VALUES ('${this.gameID}', '${timestamp}', '${p1id}', '${p2id}', '${infectedPeepsString}', '${Server.RemoveOldNodes}', ${p1_str[0]}, ${p1_str[1]}, ${p2_str[0]}, ${p2_str[1]});`;
   Server.sendSqlQueryGame(query, this);
 }
 
@@ -384,7 +392,10 @@ GameState.prototype.addMovesToDatabase = function () {
     }
   });
 
-  var query = `INSERT INTO player_actions_table VALUES ('${this.gameID}', ${this.roundNumber}, '${this.flippedNodes}', '${this.playerOneMoves}' ,'${this.playerTwoMoves}', ${this.playerOneTime}, ${this.playerTwoTime}, '${p1Nodes}', '${p2Nodes}');`;
+  var p1_last_move = this.playerOneMoves[this.playerOneMoves.length - 1];
+  var p2_last_move = this.playerTwoMoves[this.playerTwoMoves.length - 1];
+
+  var query = `INSERT INTO player_actions_table VALUES ('${this.gameID}', ${this.roundNumber}, '${this.flippedNodes}', ${p1_last_move} , ${p2_last_move}, ${this.playerOneTime}, ${this.playerTwoTime}, '${p1Nodes}', '${p2Nodes}');`;
   Server.sendSqlQueryGame(query, this);
   //Resets flipped nodes for next round
   this.flippedNodes = [];
@@ -520,7 +531,7 @@ GameState.prototype.heartbeatHandler = function (game) {
 GameState.prototype.registerClick = function (playerID, nodeID, action) {
   //milliseconds since game start
   var timestamp = Date.now() - this.gameStartTime;
-  var query = `INSERT INTO player_clicks_table VALUES ('${this.gameID}', '${playerID}', '${nodeID}', '${action}', '${timestamp}', '${this.roundNumber}');`;
+  var query = `INSERT INTO player_clicks_table VALUES ('${this.gameID}', ${playerID}, '${nodeID}', '${action}', '${timestamp}', '${this.roundNumber}');`;
   Server.sendSqlQueryGame(query, this);
 }
 
@@ -1552,3 +1563,6 @@ Server.ParseMessage = function (message, ws) {
       break;
   }
 }
+
+// for making changes to the database
+//var dbAdjust = require('./db_adjustments.js');
