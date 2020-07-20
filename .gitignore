@@ -14,6 +14,9 @@ jspm_packages/
 # AWS credentials config
 aws_config.json
 
+# Database credentials config
+db_config.json
+
 # Visual Studio Code directories
 .vscode/
 
