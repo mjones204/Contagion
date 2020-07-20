@@ -9,7 +9,8 @@ const csv = require('csvtojson');
 Server = require('./server.js');
 const uuidv4 = require('uuid/v4');
 const fs = require('fs');
-
+const util = require('util');
+const readdir = util.promisify(fs.readdir); // for reading files async
 
 processConfig = async (rawPeeps, rawConnections, uniqueLayoutName, list, topologyIndex) => {
 	//validate input configs
@@ -55,23 +56,43 @@ processConfig = async (rawPeeps, rawConnections, uniqueLayoutName, list, topolog
 }
 
 async function loadConfigs() {
-	var csvPeeps = null;
-	var csvConnections = null;
-	var spliceAmount = -1;
+	var csvPeepsDirectory = "";
+	var sliceAmount = -1;
+	var altDir = "";
+	var altSlice = 0;
+
 	if (!Server.LocalMode) {
 		csvPeepsDirectory = 'ContagionServer/Config_Files/';
 		sliceAmount = 29; //removes this prefix when saving unique ID
+		// if reading fails, the alternative directory is tried
+		altDir = 'Config_Files/';
+		altSlice = 13;
 	} else { //depending where it's started from, can be already inside ContagionServer
 		//console.log("Running on Local Mode.");
 		csvPeepsDirectory = 'Config_Files/';
 		sliceAmount = 13;
+		// if reading fails, the alternative directory is tried
+		altDir = 'ContagionServer/Config_Files/';
+		altSlice = 29;
 	}
 
 	var topologies = [];
 	//from https://stackoverflow.com/questions/2727167/how-do-you-get-a-list-of-the-names-of-all-files-present-in-a-directory-in-node-j?rq=1
-	fs.readdirSync(csvPeepsDirectory).forEach(file => {
-		topologies.push(csvPeepsDirectory + file + "/");
-	});
+	try {
+		var files = await readdir(csvPeepsDirectory);
+		for(var i = 0; i < files.length; i++) {
+			topologies.push(csvPeepsDirectory + files[i] + "/");
+		}
+	}
+	catch(err) {
+		// there was an error reading from the original directory, attempt to read from the alternative
+		csvPeepsDirectory = altDir;
+		sliceAmount = altSlice;
+		var files = await readdir(csvPeepsDirectory);
+		for(var i = 0; i < files.length; i++) {
+			topologies.push(csvPeepsDirectory + files[i] + "/");
+		}
+	}
 
 	//FORMAT OF TOPOLOGIES:
 	//Each must be in Config_Files with a different folder for each different topology (multiple layouts can be in one folder)
