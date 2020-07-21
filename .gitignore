@@ -22,3 +22,6 @@ db_config.json
 
 # Log files
 *.log
+
+# js lint config
+.jshintrc

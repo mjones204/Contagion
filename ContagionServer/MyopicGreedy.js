@@ -2,13 +2,14 @@
 var ctx;
 
 function aiTurnSimpleGreedy(aiMoves, removeOld, context, friendlyNodeStatus, anticipating, laplacian) {
+  var myMoves, enemyMoves, tokenInfluences;
   ctx = context;
   if (ctx.isServerPlayer(friendlyNodeStatus)) {
-    var myMoves = ctx.prevAiMoves;
-    var enemyMoves = ctx.playerOneMoves;
+    myMoves = ctx.prevAiMoves;
+    enemyMoves = ctx.playerOneMoves;
   } else {
-    var myMoves = ctx.playerOneMoves;
-    var enemyMoves = ctx.prevAiMoves;
+    myMoves = ctx.playerOneMoves;
+    enemyMoves = ctx.prevAiMoves;
   }
 
   if (anticipating.length > 0) {
@@ -17,10 +18,11 @@ function aiTurnSimpleGreedy(aiMoves, removeOld, context, friendlyNodeStatus, ant
     } else {
       if (anticipating == "High") {
         var highestDegree = getHighestDegreeNode(laplacian);
+        console.log("highestDegree", highestDegree);
         enemyMoves.push(highestDegree);
       } else if (anticipating == "Greedy") {
         //1-nodestatus, enemyMoves isntead of mymoves to do it from enemy POV.
-        var tokenInfluences = createTokenInfluencesList(1 - friendlyNodeStatus, enemyMoves, myMoves);
+        tokenInfluences = createTokenInfluencesList(1 - friendlyNodeStatus, enemyMoves, myMoves);
         var greedyNode = greedyNodeSelection(1 - friendlyNodeStatus, tokenInfluences, aiMoves, true, enemyMoves, true);
         enemyMoves.push(greedyNode);
       }
@@ -30,8 +32,7 @@ function aiTurnSimpleGreedy(aiMoves, removeOld, context, friendlyNodeStatus, ant
   //We know at the point one player is AI, this retrieves their previous moves.
   //array of [AI(friendly from this POV), Player(enemy)] moves
 
-  var tokenInfluences = createTokenInfluencesList(friendlyNodeStatus, myMoves, enemyMoves);
-
+  tokenInfluences = createTokenInfluencesList(friendlyNodeStatus, myMoves, enemyMoves);
 
   if (removeOld) {
     greedyNodeSelection(friendlyNodeStatus, tokenInfluences, aiMoves, true, myMoves, false); //true to remove worst. False at end to add the selection to the list
@@ -48,10 +49,11 @@ function aiTurnSimpleGreedy(aiMoves, removeOld, context, friendlyNodeStatus, ant
 function greedyNodeSelection(friendlyNodeStatus, tokenInfluences, aiMoves, findWorst, myMoves, dontAdd) {
   var bestNodesID = [-1];
   var bestNodeValue = -1;
+  var worstTokenValue, worstTokensID;
 
   if (findWorst) {
-    var worstTokensID = [-1];
-    var worstTokenValue = 100;
+    worstTokensID = [-1];
+    worstTokenValue = 100;
   }
 
   var hasFutureRounds = (ctx.roundNumber < 9); //On the final round, we want to change behaviour to only a one-round lookahead.
@@ -93,10 +95,10 @@ function greedyNodeSelection(friendlyNodeStatus, tokenInfluences, aiMoves, findW
     var worstToken = worstTokensID[Math.floor(Math.random() * worstTokensID.length)]; //Selects all equally-bad nodes at random
 
     if (ctx.isServerPlayer(friendlyNodeStatus)) {
-      var index = ctx.prevAiMoves.indexOf(worstToken);
+      index = ctx.prevAiMoves.indexOf(worstToken);
       ctx.prevAiMoves.splice(index, 1);
     } else {
-      var index = aiMoves.indexOf(worstToken);
+      index = aiMoves.indexOf(worstToken);
       aiMoves.splice(index, 1);
     }
   }
@@ -199,11 +201,11 @@ function getHighestDegreeNode(laplacian) {
       bestIndex = [i];
       best = laplacian[i][i];
     } else if (laplacian[i][i] >= best) {
-      bestIndex.push[i];
+      //bestIndex.push[i]; // was this intentional? (ask lewis)
+      bestIndex.push(i);
     }
   }
   return bestIndex[Math.floor(Math.random() * bestIndex.length)];
 }
-
 
 module.exports = aiTurnSimpleGreedy;

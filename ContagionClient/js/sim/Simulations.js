@@ -3,28 +3,26 @@ NB: While 'Sim' is used in such a way to allow for multiple sims running at once
 I have made an attempt to refactor things into the overall Simulations class, but much still remains.
 ******************************/
 
-
 //SIM DELARED AT 167
-function Simulations(){
-	Simulations.LocalMode = false;
+function Simulations() {
+	Simulations.LocalMode = true;
 	Simulations.DebugMode = true;
 	Simulations.Username = "";
 
 	function cookieManager() {
-		if (!(document.cookie.length > 0)){
+		if (document.cookie.length <= 0) {
 			console.log(document.cookie);
 			console.log("no cookie found. Setting now.");
 			var required = Math.floor(100000 * Math.random());
 			var user = "";
-			while (user != required && user != "wowee"){
-		    	user = prompt("Your random ID is: "+required+". Please write it on your questionnaire and enter it below.", "");
-		  	}
+			while (user != required && user != "wowee") {
+				user = prompt("Your random ID is: " + required + ". Please write it on your questionnaire and enter it below.", "");
+			}
 
 			document.cookie = user;
 			Simulations.Username = user;
 
-		}
-		else{
+		} else {
 			console.log("Reading from cookie");
 			Simulations.Username = document.cookie;
 		}
@@ -34,14 +32,27 @@ function Simulations(){
 
 	cookieManager();
 
-	//const uuidv4 = require('uuid/v4');
+	function formatMoney(number, decPlaces, decSep, thouSep) {
+		decPlaces = isNaN(decPlaces = Math.abs(decPlaces)) ? 2 : decPlaces,
+		  decSep = typeof decSep === "undefined" ? "." : decSep;
+		thouSep = typeof thouSep === "undefined" ? "," : thouSep;
+		var sign = number < 0 ? "-" : "";
+		var i = String(parseInt(number = Math.abs(Number(number) || 0).toFixed(decPlaces)));
+		var j = (j = i.length) > 3 ? j % 3 : 0;
+	  
+		return sign +
+		  (j ? i.substr(0, j) + thouSep : "") +
+		  i.substr(j).replace(/(\decSep{3})(?=\decSep)/g, "$1" + thouSep) +
+		  (decPlaces ? decSep + Math.abs(number - i).toFixed(decPlaces).slice(2) : "");
+	  }
 
+	//const uuidv4 = require('uuid/v4');
 
 	var self = this;
 	self.dom = $("#simulations");
 
 	self.sims = [];
-	Simulations.inProgress= false;
+	Simulations.inProgress = false;
 	Simulations.PERCENTAGE_INFECTED = 0;
 	//TODO In Slideshow.js, do a wait for serverResponse to have value, then set serverResponse to null again.
 	Simulations.awaitingResponse = false;
@@ -55,28 +66,22 @@ function Simulations(){
 	Simulations.Chart = null;
 	Simulations.ScoreLists = [];
 
-	if (Simulations.LocalMode){
+	if (Simulations.LocalMode) {
 		Simulations.ServerLocation = "ws://127.0.0.1:5001";
-	}
-	else{
+	} else {
 		Simulations.ServerLocation = "wss://stark-atoll-77422.herokuapp.com/";
 	}
 
-
-
-
-
-	parseEvent = function(message){
-		try{
+	parseEvent = function (message) {
+		try {
 			message = JSON.parse(message.data);
-		}
-		catch(err){
+		} catch (err) {
 			Simulations.connectedToServer = true;
-			console.log("Can't parse JSON:"+message.data);
+			console.log("Can't parse JSON:" + message.data);
 			return;
 		}
 		console.log(message.status);
-		switch(message.status){
+		switch (message.status) {
 			case "CONFIG_TOKEN":
 				console.log(message.payload.gameID);
 				Simulations.recievedConfig = message.payload;
@@ -91,14 +96,17 @@ function Simulations(){
 				Simulations.gameOver(message.payload);
 				break;
 			case "TIMER_TOKEN":
-				if (!Simulations.awaitingResponse){
-					var payload = [0, message.payload[1]-1];
+				if (!Simulations.awaitingResponse) {
+					var payload = [0, message.payload[1] - 1];
 					//Timeout to allow for visual transitions
 					setTimeout(Simulations.startTimer, 1000, payload);
-				}
-				else{
+				} else {
 					Simulations.startTimer(message.payload);
 				}
+				break;
+			case "MTURK_INFO":
+				console.log("Your MTurk Info: ");
+				console.log(message.payload);
 				break;
 			case "COMPLETION_CODE":
 				console.log("Your Completion Code: " + message.payload);
@@ -107,9 +115,9 @@ function Simulations(){
 				console.log("Error getting completion code");
 				break;
 		}
-	}
-	
-	self.serverSetup = function(){
+	};
+
+	self.serverSetup = function () {
 		self.ws = new WebSocket(Simulations.ServerLocation);
 		self.ws.onopen = function (event) {
 			self.ws.send("Connection Recieved.");
@@ -117,60 +125,68 @@ function Simulations(){
 		};
 		self.ws.onerror = function (err) {
 			console.log('err: ', err);
-		}
+		};
 		self.ws.onmessage = function (event) {
 			parseEvent(event);
 		};
 
-	}
+	};
 	self.serverSetup();
 
-	Simulations.checkServerConnected = function(){
+	Simulations.checkServerConnected = function () {
 		return (self.ws.readyState == 1 ? true : false);
-	}
+	};
 
 	//Keeps connection to server alive
-	Simulations.heartbeat = function(){
-		Simulations.sendServerMessageOverride(new Message(null,"HEARTBEAT"));
-	}
+	Simulations.heartbeat = function () {
+		Simulations.sendServerMessageOverride(new Message(null, "HEARTBEAT"));
+	};
 
-	Simulations.sendServerMessage = function(msg){
-		if(Simulations.TutorialMode){
+	Simulations.sendServerMessage = function (msg) {
+		if (Simulations.TutorialMode) {
 			return;
 		}
-		if (self.ws.readyState != 1){
+		if (self.ws.readyState != 1) {
 			Simulations.popupDialogue("Error connecting to server. Please refresh!");
-		}
-		else{
+		} else {
 			//Simulations.popupDialogue(""); //clears any existing text
 			console.log(msg);
 			self.ws.send(JSON.stringify(msg));
 		}
-	}
+	};
 
-	Simulations.sendServerMessageOverride = function(msg){
-			self.ws.send(JSON.stringify(msg));
-	}
+	Simulations.sendServerMessageOverride = function (msg) {
+		self.ws.send(JSON.stringify(msg));
+	};
 
 	//Sends request to server, then sets awaiting response flag to true, to halt certain other parts of code until the config is returned.
-	Simulations.requestConfig = function(){
-		if(Simulations.recievedConfig == null){
-			if(Simulations.EmergencyAIMode){
-				Simulations.sendServerMessageOverride(new Message(Simulations.Username,"EMERGENCY_AI")); //aimode
-			}
-			else{
-				Simulations.sendServerMessage(new Message(Simulations.Username,"NEW_GAME_TOKEN"));
+	Simulations.requestConfig = function () {
+		if (Simulations.recievedConfig == null) {
+			if (Simulations.EmergencyAIMode) {
+				Simulations.sendServerMessageOverride(new Message(Simulations.Username, "EMERGENCY_AI")); //aimode
+			} else {
+				Simulations.sendServerMessage(new Message(Simulations.Username, "NEW_GAME_TOKEN"));
 			}
 			Simulations.awaitingResponse = true;
 		}
-	}
+	};
 
 	//Request MTurk completion code from server
-	Simulations.requestCompletionCode = function(){
-		Simulations.sendServerMessage(new Message(Simulations.Username,"NEW_COMPLETION_CODE"));
-	}
+	Simulations.requestCompletionCode = function () {
+		Simulations.sendServerMessage(new Message(Simulations.Username, "NEW_COMPLETION_CODE"));
+	};
 
-	Simulations.formatConfig = function(config){
+	//Request MTurk info from server
+	Simulations.requestMTurkInfo = function (game_id, player_no) {
+		var payload = {
+			username: Simulations.Username,
+			last_game_id: game_id,
+			last_game_player_no: player_no,
+		};
+		Simulations.sendServerMessage(new Message(payload, "GET_MTURK_INFO"));
+	};
+
+	Simulations.formatConfig = function (config) {
 		console.log("CONFIG");
 		console.log(config);
 		var sim = self.sims[0];
@@ -179,10 +195,10 @@ function Simulations(){
 		var Xscale, Yscale = 0;
 		var Xoffset = 75;
 		var Yoffset = 150;
-		Xscale = $("#simulations_container").clientWidth - (2*Xoffset); //subtration to provide symmetry of gap for both sides
-		Yscale = $("#simulations_container").clientHeight - (1.2*Yoffset); //don't need the symmetry vertically, since it's asymmetric by design. Want some empty space at bottom though
+		Xscale = $("#simulations_container").clientWidth - (2 * Xoffset); //subtration to provide symmetry of gap for both sides
+		Yscale = $("#simulations_container").clientHeight - (1.2 * Yoffset); //don't need the symmetry vertically, since it's asymmetric by design. Want some empty space at bottom though
 
-		peeps.forEach(function(peep){
+		peeps.forEach(function (peep) {
 			scaledPeeps.push([(peep[0] * Xscale) + Xoffset, (peep[1] * Yscale) + Yoffset, peep[2]]);
 		});
 		config.network.peeps = scaledPeeps;
@@ -194,65 +210,66 @@ function Simulations(){
 		publish("sim/connection_update");
 		Simulations.recievedConfig = config;
 		Simulations.awaitingResponse = false;
-	}
+	};
 
-	Simulations.getConfig = function(){
+	Simulations.getConfig = function () {
 		return Simulations.recievedConfig;
-	}
+	};
 
-	Simulations.startTimer = function(payload){
+	Simulations.startTimer = function (payload) {
 		//payload[0] is 0 if new round timer, 1 if waiting for player timer.
 		//payload[1] is timer duration
-		try{
+		try {
 			SimUI.updateTimer(payload);
-		}
-		catch(err){
+		} catch (err) {
 			//if can't start the timer because UI hasn't loaded yet, try again. Reduces timer time to compensate.
-			payload = [payload[0], payload[1]-0.5];
+			payload = [payload[0], payload[1] - 0.5];
 			setTimeout(Simulations.startTimer, 500, payload);
 		}
-	}
+	};
 
-	Simulations.gameOver = function(payload){
-		console.log(payload); // [result, myscores, theirscores]
+	Simulations.gameOver = function (payload) {
+		console.log(payload); // [result, myscores, theirscores, game_id, playerNo]
+		// request mturk info which is displayed in the modal
+		var game_id = payload[3];
+		var playerNo = payload[4];
+		Simulations.requestMTurkInfo(game_id, playerNo);
+
 		var verdict = payload[0]; //"win" "lose" or "draw"
-		if (payload[1] != null){
+		if (payload[1] != null) {
 			var noRounds = payload[1].length;
-			Simulations.Score = payload[1][noRounds-1];
+			Simulations.Score = payload[1][noRounds - 1];
 		}
 		//Lose
 		Simulations.GamesPlayed++;
-		if (verdict == "lose"){
+		if (verdict == "lose") {
 			Simulations.WinState = 0;
 			self.sims[0].lose();
 		}
 		//Win
-		else if (verdict == "win"){
+		else if (verdict == "win") {
 			Simulations.GamesWon++;
 			Simulations.WinState = 2;
 			self.sims[0].win();
-		}
-		else if (verdict == "disconnect"){
+		} else if (verdict == "disconnect") {
 			Simulations.WinState = 3;
 			self.sims[0].win();
-		}
-		else if (verdict == "time"){
+		} else if (verdict == "time") {
 			Simulations.WinState = 4;
 			self.sims[0].lose();
 		}
 		//Draw ("tie") to prevent confusion with the draw func
-		else if (verdict == "tie"){
-			 Simulations.WinState = 1;
-			 self.sims[0].tie();
-		}
-		else{
+		else if (verdict == "tie") {
+			Simulations.WinState = 1;
+			self.sims[0].tie();
+		} else {
 			console.log("ERR UNKNOWN OUTCOME!");
 		}
-		Simulations.ScoreLists = [payload[1],payload[2]];
+		Simulations.ScoreLists = [payload[1], payload[2]];
 		setTimeout(Modal.showAll, 3000, "endgame");
-	}
+	};
 
-	Simulations.newGame = function(){
+	Simulations.newGame = function () {
 		Simulations.recievedConfig = null; //clears old config so we can start new game
 		Simulations.requestConfig();
 		SimUI.RoundNumber = 0;
@@ -262,16 +279,16 @@ function Simulations(){
 		Simulations.PERCENTAGE_INFECTED = 0;
 		Simulations.Chart = 0;
 		slideshow.gotoChapter("Strategy");
-	}
+	};
 
 
 	// Clear All Sims
-	self.clear = function(){
+	self.clear = function () {
 
 		Simulations.IS_RUNNING = false;
 		$("#container").removeAttribute("sim_is_running");
 
-		self.sims.forEach(function(sim){
+		self.sims.forEach(function (sim) {
 			self.dom.removeChild(sim.canvas);
 			sim.kill();
 		});
@@ -280,38 +297,36 @@ function Simulations(){
 	};
 
 	// Add Sims
-	self.add = function(config){
-		if(Simulations.recievedConfig == null && !Simulations.TutorialMode){
+	self.add = function (config) {
+		if (Simulations.recievedConfig == null && !Simulations.TutorialMode) {
 			Simulations.requestConfig();
 			setTimeout((config) => {
-				try{
+				try {
 					var temp = Simulations.getConfig();
-					if(temp == null){
+					if (temp == null) {
 						console.log("getConfig null");
 						publish("START");
 						return;
-					}
-					else{
+					} else {
 						console.log("getConfig notnull");
 						config = temp;
 					}
-				}
-				catch(err){
+				} catch (err) {
 					Simulations.popupDialogue("An error has occurred. Please restart.");
 					return;
 				}
-			},1000, config);
+			}, 1000, config);
 
 		}
-		if (config == null){
-			if(Simulations.recievedConfig == null){
+		if (config == null) {
+			if (Simulations.recievedConfig == null) {
 				var testo = setTimeout(this.add, 500, config);
 				return;
 			}
 			config = cloneObject(Simulations.recievedConfig);
 		}
 
-		if(Simulations.recievedConfig != null){
+		if (Simulations.recievedConfig != null) {
 			Simulations.formatConfig(config);
 		}
 
@@ -325,49 +340,47 @@ function Simulations(){
 		self.sims.push(sim);
 	};
 
-	self.beginRound = function(){
+	self.beginRound = function () {
 		Simulations.awaitingResponse = true;
 		Simulations.requestStart = false;
 		Simulations.inProgress = true;
-			// Step all sims!
-			self.sims.forEach(function(sim){
+		// Step all sims!
+		self.sims.forEach(function (sim) {
 
-				//Sends moves to the server and waits for a response
-				var movesToSubmit = sim.filterNewTokens(); //adds latest tokens onto the end of the list
-				console.log(movesToSubmit);
-				Simulations.sendServerMessage(new Message(movesToSubmit, "SUBMIT_MOVES_TOKEN"));
-				Simulations.waitForServerMoves(sim);
-			});
-	}
+			//Sends moves to the server and waits for a response
+			var movesToSubmit = sim.filterNewTokens(); //adds latest tokens onto the end of the list
+			console.log(movesToSubmit);
+			Simulations.sendServerMessage(new Message(movesToSubmit, "SUBMIT_MOVES_TOKEN"));
+			Simulations.waitForServerMoves(sim);
+		});
+	};
 
-	Simulations.waitForServerMoves = function(sim){
-			if (!Simulations.awaitingResponse){
-					Simulations.IS_RUNNING = false;
-					publish("sim/round_over");
-					Simulations.inProgress = false;
-			}
-			else{
-				var testo = setTimeout(Simulations.waitForServerMoves, 1000, sim);
-			}
-	}
+	Simulations.waitForServerMoves = function (sim) {
+		if (!Simulations.awaitingResponse) {
+			Simulations.IS_RUNNING = false;
+			publish("sim/round_over");
+			Simulations.inProgress = false;
+		} else {
+			var testo = setTimeout(Simulations.waitForServerMoves, 1000, sim);
+		}
+	};
 
-	Simulations.updateStateTutorial = function(){
+	Simulations.updateStateTutorial = function () {
 		var sim = self.sims[0];
 		var peeps = sim.peeps;
-		peeps.forEach(function(peep){
-			if (peep.numInfectedFriends > 0 || peep.playerOrbits.length > 0){
+		peeps.forEach(function (peep) {
+			if (peep.numInfectedFriends > 0 || peep.playerOrbits.length > 0) {
 				peep.isPastThreshold = true;
-			}
-			else if (peep.numFriends > 0 || peep.aiOrbits.length > 0){
+			} else if (peep.numFriends > 0 || peep.aiOrbits.length > 0) {
 				peep.isPastThreshold = false;
 			}
 		});
 		sim.nextStep();
-	}
+	};
 
 	//Updates the client variables to reflect the enemy's turn and subsequent infections.
-	Simulations.updateState = function(gameState){
-		if(ConnectorCutter.TOKEN_PROTOCOL == "Incremental"){
+	Simulations.updateState = function (gameState) {
+		if (ConnectorCutter.TOKEN_PROTOCOL == "Incremental") {
 			ConnectorCutter.MAX_CONNECTIONS++;
 			ConnectorCutter.CONNECTIONS_REMAINING++;
 			publish("sim/connection_update");
@@ -375,97 +388,94 @@ function Simulations(){
 		var updatedPeeps = gameState[0];
 		var enemyMoves = gameState[1];
 		Simulations.Score = gameState[2];
-		self.sims.forEach(function(sim){
+		self.sims.forEach(function (sim) {
 			var peepsList = sim.peeps;
-			if (peepsList.length !== updatedPeeps.length){
+			if (peepsList.length !== updatedPeeps.length) {
 				console.log("ERR! DIFFERRING NUMBER OF PEEPS!");
 			}
-			for (i=0; i<peepsList.length; i++){
+			for (i = 0; i < peepsList.length; i++) {
 				sim.removeOrbitConnection(peepsList[i], false);
-				if(updatedPeeps[i] == 1){
+				if (updatedPeeps[i] == 1) {
 					peepsList[i].isPastThreshold = true;
-				}
-				else if(updatedPeeps[i] == 0){
-					 peepsList[i].isPastThreshold = false;
+				} else if (updatedPeeps[i] == 0) {
+					peepsList[i].isPastThreshold = false;
 				}
 			}
-			enemyMoves.forEach(function(move){
+			enemyMoves.forEach(function (move) {
 				sim.addOrbitConnection(peepsList[move], false);
 			});
 			sim.nextStep();
 			sim.calculatePercentage();
 		});
 		Simulations.awaitingResponse = false;
-	}
+	};
 
-	Simulations.validateMoves = function(orbits, id){
+	Simulations.validateMoves = function (orbits, id) {
 		//ignores this requirement if you're removing orbits
-		if (!orbits && ConnectorCutter.CONNECTIONS_REMAINING != 0){
+		if (!orbits && ConnectorCutter.CONNECTIONS_REMAINING != 0) {
 			Simulations.popupDialogue("You have remaining tokens!");
 			publish("sim/out_of_connections"); //slight misnomer, alerts the user that they have remaining connections they have to use
 			return false;
 		}
-		if (SimUI.RoundNumber != 1){
+		if (SimUI.RoundNumber != 1) {
 			var currMoves = self.sims[0].formatPeeps();
-			if (orbits){
+			if (orbits) {
 				var tempIndex = currMoves.indexOf(id);
-				if(tempIndex == -1){
+				if (tempIndex == -1) {
 					//Prevents 'can only move one per turn' from appearing if you're not clicking a node with orbits.
 					return false;
 				}
 				currMoves.splice(tempIndex, 1);
 			}
 			var differences = 0;
-			Simulations.PreviousMoves.forEach(function(move){
+			Simulations.PreviousMoves.forEach(function (move) {
 				var index = currMoves.indexOf(move);
-				if (index > -1){
+				if (index > -1) {
 					currMoves.splice(index, 1);
-				}
-				else{
+				} else {
 					differences++;
 				}
 			});
-			if(ConnectorCutter.TOKEN_PROTOCOL == "Incremental"){
-				if(orbits && differences != 0){
+			if (ConnectorCutter.TOKEN_PROTOCOL == "Incremental") {
+				if (orbits && differences != 0) {
 					Simulations.popupDialogue("You can't remove old tokens!");
 					return false;
 				}
-			}
-			else if (differences > 1){
+			} else if (differences > 1) {
 				Simulations.popupDialogue("You can only move one token per turn!");
 				publish("sim/out_of_connections");
 				return false;
 			}
 		}
 		return true;
-	}
+	};
 
-	Simulations.resetMoves = function(){
-		var game
-			self.peeps.forEach(function(peep){
-				for(i=0; i<peep.playerOrbits.length; i++){
-					formattedPeeps.push(peep.id);
-				}
-			});
-			return formattedPeeps;
-	}
+	Simulations.resetMoves = function () {
+		var game;
+		self.peeps.forEach(function (peep) {
+			for (i = 0; i < peep.playerOrbits.length; i++) {
+				formattedPeeps.push(peep.id);
+			}
+		});
+		return formattedPeeps;
+	};
 
 	// Update
-	self.update = function(){
-		if(Simulations.requestStart){
+	self.update = function () {
+		if (Simulations.requestStart) {
 			self.beginRound();
 		}
 
 		// Update all sims
-		self.sims.forEach(function(sim){
+		self.sims.forEach(function (sim) {
 			sim.update();
 
 		});
 	};
 
 	// Draw
-	self.draw = function(){
-		self.sims.forEach(function(sim){
+	self.draw = function () {
+		self.sims.forEach(function (sim) {
 			sim.draw();
 		});
 	};
@@ -475,24 +485,24 @@ function Simulations(){
 	////////////////////////
 
 	self.CLOCK = -1;
-	subscribe("sim/start", function(){
+	subscribe("sim/start", function () {
 		Simulations.IS_RUNNING = true;
-		$("#container").setAttribute("sim_is_running",true);
+		$("#container").setAttribute("sim_is_running", true);
 
 		self.CLOCK = 0;
 		// save for later resetting
-		self.sims.forEach(function(sim){
+		self.sims.forEach(function (sim) {
 			sim.save();
 		});
 
 	});
-	subscribe("sim/stop", function(){
+	subscribe("sim/stop", function () {
 
 		Simulations.IS_RUNNING = false;
 		$("#container").removeAttribute("sim_is_running");
 
 		// reload the network pre-sim
-		self.sims.forEach(function(sim){
+		self.sims.forEach(function (sim) {
 			sim.reload();
 		});
 
@@ -503,29 +513,29 @@ function Simulations(){
 	///////////////////////
 
 	// Get Child!
-	self.getChildByID = function(id){
-		return self.sims.find(function(sim){
-			return sim.id==id;
+	self.getChildByID = function (id) {
+		return self.sims.find(function (sim) {
+			return sim.id == id;
 		});
 	};
 
 }
 
 // On resize, adjust the fullscreen sim (if any).
-window.addEventListener("resize", function(){
-	if(slideshow.simulations.sims.length>0){
+window.addEventListener("resize", function () {
+	if (slideshow.simulations.sims.length > 0) {
 		slideshow.simulations.sims[0].resize();
 	}
 }, false);
 
-function Sim(config){
+function Sim(config) {
 	var self = this;
 	self.config = config;
 	self.networkConfig = cloneObject(config.network);
 	self.container = config.container;
 	self.options = config.options || {};
 
-	var _PLAY_CONTAGION_SOUND = function(){
+	var _PLAY_CONTAGION_SOUND = function () {
 
 		SOUNDS.contagion.volume(0.75);
 		SOUNDS.contagion.play();
@@ -539,38 +549,43 @@ function Sim(config){
 	self.ctx = self.canvas.getContext('2d');
 
 	// Mouse, offset!
-	self.mouse = {x:0, y:0};
+	self.mouse = {
+		x: 0,
+		y: 0
+	};
 
 	// Connector-Cutter
-	self.connectorCutter = new ConnectorCutter({sim:self});
+	self.connectorCutter = new ConnectorCutter({
+		sim: self
+	});
 
 	// Resize
 	var simOffset;
 
 	//This returns the ID for each orbit. If node has 2 orbits, will appear twice, etc.
-	self.formatPeeps = function(){
+	self.formatPeeps = function () {
 		var formattedPeeps = [];
-		self.peeps.forEach(function(peep){
-			for(i=0; i<peep.playerOrbits.length; i++){
+		self.peeps.forEach(function (peep) {
+			for (i = 0; i < peep.playerOrbits.length; i++) {
 				formattedPeeps.push(peep.id);
 			}
 		});
 		return formattedPeeps;
-	}
+	};
 
-	self.filterNewTokens = function(){ //NB: If want to do more than one in future, here is a good place to change
+	self.filterNewTokens = function () { //NB: If want to do more than one in future, here is a good place to change
 		var currentPeeps = self.formatPeeps();
 		var prevPeeps = cloneObject(Simulations.PreviousMoves);
-		prevPeeps.forEach(function(p){
+		prevPeeps.forEach(function (p) {
 			var index = currentPeeps.indexOf(p);
 			currentPeeps.splice(index, 1);
 		});
 		console.log(currentPeeps);
 		Simulations.PreviousMoves.push(currentPeeps[0]);
 		return Simulations.PreviousMoves;
-	}
+	};
 
-	self.resize = function(){
+	self.resize = function () {
 
 		var container = $("#simulations_container");
 		simOffset = _getBoundingClientRect(self.container.dom);
@@ -580,8 +595,8 @@ function Sim(config){
 		// Set difference in width & height
 		var width = container.clientWidth;
 		var height = container.clientHeight;
-		self.canvas.width = width*2;
-		self.canvas.height = height*2;
+		self.canvas.width = width * 2;
+		self.canvas.height = height * 2;
 		self.canvas.style.width = (width) + "px";
 		self.canvas.style.height = (height) + "px";
 
@@ -589,18 +604,18 @@ function Sim(config){
 	self.resize();
 
 	// Networks... clear/init
-	self.clear = function(){
+	self.clear = function () {
 		self.peeps = [];
 		self.connections = [];
 		self.contagion = 0;
 	};
-	self.init = function(){
+	self.init = function () {
 
 		// Clear!
 		self.clear();
 
 		// Peeps
-		self.networkConfig.peeps.forEach(function(p){
+		self.networkConfig.peeps.forEach(function (p) {
 			var x = p[0],
 				y = p[1],
 				infected = p[2];
@@ -608,10 +623,10 @@ function Sim(config){
 		});
 
 		// Connections
-		self.networkConfig.connections.forEach(function(c){
+		self.networkConfig.connections.forEach(function (c) {
 			var from = self.peeps[c[0]],
 				to = self.peeps[c[1]],
-				uncuttable = c[2]||false
+				uncuttable = c[2] || false;
 			self.addConnection(from, to, uncuttable);
 		});
 
@@ -619,8 +634,8 @@ function Sim(config){
 	};
 
 	// Update
-	self.onupdate = config.onupdate || function(){};
-	self.update = function(){
+	self.onupdate = config.onupdate || function () {};
+	self.update = function () {
 
 		// "Mouse", offset!
 		var canvasBounds = _getBoundingClientRect(self.canvas);
@@ -629,7 +644,7 @@ function Sim(config){
 		self.mouse.y -= canvasBounds.y;
 		self.mouse.lastX -= canvasBounds.x;
 		self.mouse.lastY -= canvasBounds.y;
-		if(config.fullscreen){
+		if (config.fullscreen) {
 			var fullscreenOffsetX = config.x + simOffset.x;
 			var fullscreenOffsetY = config.y + simOffset.y;
 			self.mouse.x -= fullscreenOffsetX;
@@ -642,24 +657,24 @@ function Sim(config){
 		self.connectorCutter.update();
 
 		// Connections & Peeps
-		self.connections.forEach(function(connection){
+		self.connections.forEach(function (connection) {
 			connection.update();
 		});
-		self.peeps.forEach(function(peep){
+		self.peeps.forEach(function (peep) {
 			peep.update();
 		});
 
 		// secret editor...
 		// drag Peep
-		if(_draggingPeep){
-			_draggingPeep.x = self.mouse.x+_draggingOffset.x;
-			_draggingPeep.y = self.mouse.y+_draggingOffset.y;
+		if (_draggingPeep) {
+			_draggingPeep.x = self.mouse.x + _draggingOffset.x;
+			_draggingPeep.y = self.mouse.y + _draggingOffset.y;
 			_draggingPeep.velocity.x = 0;
 			_draggingPeep.velocity.y = 0;
 		}
 
 		// update confetti & winword...
-		self.confetti.forEach(function(confetti){
+		self.confetti.forEach(function (confetti) {
 
 			confetti.x += confetti.vx;
 			confetti.y += confetti.vy;
@@ -671,16 +686,16 @@ function Sim(config){
 			confetti.vy *= 0.95;
 
 		});
-		if(self.winWord.ticker>=0){
-			self.winWord.ticker += 1/60;
-			if(self.winWord.ticker>3){
+		if (self.winWord.ticker >= 0) {
+			self.winWord.ticker += 1 / 60;
+			if (self.winWord.ticker > 3) {
 				self.winWord.ticker = -1;
 			}
 		}
 
-		if(self.popupWord.ticker>=0){
-			self.popupWord.ticker += 1/60;
-			if(self.popupWord.ticker>3){
+		if (self.popupWord.ticker >= 0) {
+			self.popupWord.ticker += 1 / 60;
+			if (self.popupWord.ticker > 3) {
 				self.popupWord.ticker = -1;
 			}
 		}
@@ -690,20 +705,20 @@ function Sim(config){
 
 	};
 
-	Simulations.popupDialogue = function(text){ //NOTE: Simulations. or self. ? maybe call from above/below
+	Simulations.popupDialogue = function (text) { //NOTE: Simulations. or self. ? maybe call from above/below
 		self.popupLabel = text;
 		self.popupWord.ticker = 0;
-	}
+	};
 
 	// Draw
-	self.draw = function(){
+	self.draw = function () {
 
 		// Retina
 		var ctx = self.ctx;
 		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 		ctx.save();
-		ctx.scale(2,2);
-		if(config.fullscreen){
+		ctx.scale(2, 2);
+		if (config.fullscreen) {
 			var fullscreenOffsetX = config.x + simOffset.x;
 			var fullscreenOffsetY = config.y + simOffset.y;
 			ctx.translate(fullscreenOffsetX, fullscreenOffsetY);
@@ -711,43 +726,43 @@ function Sim(config){
 
 		// Draw all of it!
 		self.connectorCutter.draw(ctx);
-		self.connections.forEach(function(connection){
+		self.connections.forEach(function (connection) {
 			connection.draw(ctx);
 		});
-		self.peeps.forEach(function(peep){
+		self.peeps.forEach(function (peep) {
 			peep.draw(ctx);
 		});
 
 		ctx.restore();
 
 		// Draw confetti - NOT AFFECTED BY TRANSFORMS.
-		self.confetti.forEach(function(confetti){
+		self.confetti.forEach(function (confetti) {
 			ctx.save();
-				var offsetX = -Math.sin(confetti.spin)*9;
-				ctx.translate(confetti.x+offsetX, confetti.y);
-				ctx.rotate(Math.sin(confetti.spin)*0.2);
-				if(confetti.flip) ctx.scale(-1,1);
-				self.confettiSprite.gotoFrame(confetti.frame);
-				self.confettiSprite.draw(ctx);
+			var offsetX = -Math.sin(confetti.spin) * 9;
+			ctx.translate(confetti.x + offsetX, confetti.y);
+			ctx.rotate(Math.sin(confetti.spin) * 0.2);
+			if (confetti.flip) ctx.scale(-1, 1);
+			self.confettiSprite.gotoFrame(confetti.frame);
+			self.confettiSprite.draw(ctx);
 			ctx.restore();
 		});
 
 		// Draw WIN WORD
-		if(self.winWord.ticker>=0){
+		if (self.winWord.ticker >= 0) {
 
 			ctx.save();
 			ctx.translate(self.winWord.x, self.winWord.y);
-			ctx.scale(2,2); // retina
+			ctx.scale(2, 2); // retina
 
 			// expand
-			if(self.winWord.ticker<0.2){
-				var scale = self.winWord.ticker/0.2;
-				ctx.scale(scale,scale);
+			if (self.winWord.ticker < 0.2) {
+				var scale = self.winWord.ticker / 0.2;
+				ctx.scale(scale, scale);
 			}
 
 			// fade away
-			if(self.winWord.ticker>2){
-				var alpha = -(self.winWord.ticker-3);
+			if (self.winWord.ticker > 2) {
+				var alpha = -(self.winWord.ticker - 3);
 				ctx.globalAlpha = alpha;
 			}
 
@@ -757,19 +772,15 @@ function Sim(config){
 			ctx.fontWeight = "bold";
 			ctx.textAlign = "center";
 			var label;
-			if (Simulations.WinState == 0){
+			if (Simulations.WinState == 0) {
 				label = "Finished!";
-			}
-			else if (Simulations.WinState == 2){
+			} else if (Simulations.WinState == 2) {
 				label = "Finished!";
-			}
-			else if (Simulations.WinState == 1){
+			} else if (Simulations.WinState == 1) {
 				label = "Finished!";
-			}
-			else if (Simulations.WinState == 3){
+			} else if (Simulations.WinState == 3) {
 				label = "OPPONENT LEFT!";
-			}
-			else if (Simulations.WinState == 4){
+			} else if (Simulations.WinState == 4) {
 				label = "OUT OF TIME!";
 			}
 			ctx.fillText(label, 0, 0);
@@ -778,21 +789,17 @@ function Sim(config){
 			ctx.fillText(label, -350, -350);
 			ctx.fillText(label, -350, 350);
 
-
-
 			ctx.restore();
-
 		}
 
-		if(self.popupWord.ticker>=0){
-
+		if (self.popupWord.ticker >= 0) {
 			ctx.save();
 
 			var bounds = getBoundsOfPoints(self.peeps); // OPTIONAL BOUNDS
-			var cx = bounds.x + bounds.width/2;
+			var cx = bounds.x + bounds.width / 2;
 			var cy = bounds.y + (bounds.height * 0.96);
 			//Bounds work a little differently in the splash screen. This ensures the text is in the right place.
-			if (!Simulations.connectedToServer){
+			if (!Simulations.connectedToServer) {
 				cy = cy * 0.8;
 			}
 			cx += fullscreenOffsetX;
@@ -801,17 +808,17 @@ function Sim(config){
 			cy *= 2; // retina
 
 			ctx.translate(cx, cy);
-			ctx.scale(2,2); // retina
+			ctx.scale(2, 2); // retina
 
 			// expand
-			if(self.popupWord.ticker<0.2){
-				var scale = self.popupWord.ticker/0.2;
-				ctx.scale(scale,scale);
+			if (self.popupWord.ticker < 0.2) {
+				var scale = self.popupWord.ticker / 0.2;
+				ctx.scale(scale, scale);
 			}
 
 			// fade away
-			if(self.popupWord.ticker>2){
-				var alpha = -(self.popupWord.ticker-3);
+			if (self.popupWord.ticker > 2) {
+				var alpha = -(self.popupWord.ticker - 3);
 				ctx.globalAlpha = alpha;
 			}
 
@@ -827,15 +834,13 @@ function Sim(config){
 	};
 
 	// Kill
-	self.kill = function(){
-
+	self.kill = function () {
 		self.clear();
 
 		// key handlers, too
-		_keyHandlers.forEach(function(_handler){
+		_keyHandlers.forEach(function (_handler) {
 			unsubscribe(_handler);
 		});
-
 	};
 
 	///////////////////
@@ -844,43 +849,49 @@ function Sim(config){
 
 	self.wonBefore = false;
 	self.confetti = [];
-	self.winWord = {x:0, y:0, ticker:-1};
-	self.popupWord = {x:0, y:0, ticker:-1};
+	self.winWord = {
+		x: 0,
+		y: 0,
+		ticker: -1
+	};
+	self.popupWord = {
+		x: 0,
+		y: 0,
+		ticker: -1
+	};
 
-
-
-
-	self.win = function(bounds){
+	self.win = function (bounds) {
 		// Confetti Sprite
 		self.confettiSprite = new Sprite({
 			img: "confetti",
-			frames:3, sw:100, sh:50,
+			frames: 3,
+			sw: 100,
+			sh: 50,
 		});
 		self.confettiSprite.pivotX = 50;
 		self.confettiSprite.pivotY = 50;
 		self.confettiSprite.scale = 0.5;
 
 		// ONLY ONCE
-		if(self.wonBefore) return;
+		if (self.wonBefore) return;
 		self.wonBefore = true;
 
 		// SOUND!
-		if(bounds && bounds.small){
+		if (bounds && bounds.small) {
 			SOUNDS.party_short.play();
-		}else{
+		} else {
 			SOUNDS.party.play();
 		}
 
 		// AMOUNT OF CONFETTI
 		var AMOUNT_OF_CONFETTI = 150;
 
-
 		// Get center of peeps
 		var fullscreenOffsetX = config.x + simOffset.x;
 		var fullscreenOffsetY = config.y + simOffset.y;
-		if(!bounds || !bounds.x) bounds = getBoundsOfPoints(self.peeps); // OPTIONAL BOUNDS
-		var cx = bounds.x + bounds.width/2;
-		var cy = bounds.y + bounds.height/2;
+		if (!bounds || !bounds.x) bounds = getBoundsOfPoints(self.peeps); // OPTIONAL BOUNDS
+		var cx = bounds.x + bounds.width / 2;
+		var cy = bounds.y + bounds.height / 2;
 		cx += fullscreenOffsetX;
 		cy += fullscreenOffsetY;
 		cx *= 2; // retina
@@ -892,47 +903,48 @@ function Sim(config){
 		self.winWord.ticker = 0;
 
 		// Place confetti
-		for(var i=0; i<AMOUNT_OF_CONFETTI; i++){
-			var angle = Math.random()*Math.TAU;
-			var burst = bounds.width/15;
-			var frame = Math.floor(Math.random()*5);
-			var spinSpeed = 0.03+Math.random()*0.03;
+		for (var i = 0; i < AMOUNT_OF_CONFETTI; i++) {
+			var angle = Math.random() * Math.TAU;
+			var burst = bounds.width / 15;
+			var frame = Math.floor(Math.random() * 5);
+			var spinSpeed = 0.03 + Math.random() * 0.03;
 			var confetti = {
 				x: cx,
 				y: cy,
-				vx: Math.cos(angle)*Math.random()*burst,
-				vy: Math.sin(angle)*Math.random()*burst - burst*0.25,
+				vx: Math.cos(angle) * Math.random() * burst,
+				vy: Math.sin(angle) * Math.random() * burst - burst * 0.25,
 				frame: frame,
 				spinSpeed: spinSpeed,
-				spin: Math.random()*Math.TAU,
-				g: 0.10+Math.random()*0.10,
-				flip: (Math.random()<0.5)
+				spin: Math.random() * Math.TAU,
+				g: 0.10 + Math.random() * 0.10,
+				flip: (Math.random() < 0.5)
 			};
 			self.confetti.push(confetti);
 		}
-
 	};
 
-	self.lose = function(bounds){
+	self.lose = function (bounds) {
 		// Confetti Sprite
 		self.confettiSprite = new Sprite({
 			img: "sadconfetti",
-			frames:3, sw:100, sh:50,
+			frames: 3,
+			sw: 100,
+			sh: 50,
 		});
 		self.confettiSprite.pivotX = 50;
 		self.confettiSprite.pivotY = 50;
 		self.confettiSprite.scale = 0.5;
 
-			SOUNDS.boom.play();
+		SOUNDS.boom.play();
 		// AMOUNT OF CONFETTI
 		var AMOUNT_OF_CONFETTI = 20;
 
 		// Get center of peeps
 		var fullscreenOffsetX = config.x + simOffset.x;
 		var fullscreenOffsetY = config.y + simOffset.y;
-		if(!bounds || !bounds.x) bounds = getBoundsOfPoints(self.peeps); // OPTIONAL BOUNDS
-		var cx = bounds.x + bounds.width/2;
-		var cy = bounds.y + bounds.height/2;
+		if (!bounds || !bounds.x) bounds = getBoundsOfPoints(self.peeps); // OPTIONAL BOUNDS
+		var cx = bounds.x + bounds.width / 2;
+		var cy = bounds.y + bounds.height / 2;
 		cx += fullscreenOffsetX;
 		cy += fullscreenOffsetY;
 		cx *= 2; // retina
@@ -944,47 +956,49 @@ function Sim(config){
 		self.winWord.ticker = 0;
 
 		// Place confetti
-		for(var i=0; i<AMOUNT_OF_CONFETTI; i++){
-			var angle = Math.random()*Math.TAU;
-			var burst = bounds.width/30;
-			var frame = Math.floor(Math.random()*5);
-			var spinSpeed = 0.00+Math.random()*0.02;
+		for (var i = 0; i < AMOUNT_OF_CONFETTI; i++) {
+			var angle = Math.random() * Math.TAU;
+			var burst = bounds.width / 30;
+			var frame = Math.floor(Math.random() * 5);
+			var spinSpeed = 0.00 + Math.random() * 0.02;
 			var confetti = {
 				x: cx,
 				y: cy,
-				vx: Math.cos(angle)*Math.random()*burst,
-				vy: Math.sin(angle)*Math.random()*burst - burst*0.25,
+				vx: Math.cos(angle) * Math.random() * burst,
+				vy: Math.sin(angle) * Math.random() * burst - burst * 0.25,
 				frame: frame,
 				spinSpeed: spinSpeed,
-				spin: Math.random()*Math.TAU,
-				g: 0.60+Math.random()*0.40,
-				flip: (Math.random()<0.5)
+				spin: Math.random() * Math.TAU,
+				g: 0.60 + Math.random() * 0.40,
+				flip: (Math.random() < 0.5)
 			};
 			self.confetti.push(confetti);
 		}
 
 	};
 
-	self.tie = function(bounds){
+	self.tie = function (bounds) {
 		// Confetti Sprite
 		self.confettiSprite = new Sprite({
 			img: "sadconfetti",
-			frames:3, sw:100, sh:50,
+			frames: 3,
+			sw: 100,
+			sh: 50,
 		});
 		self.confettiSprite.pivotX = 50;
 		self.confettiSprite.pivotY = 50;
 		self.confettiSprite.scale = 0.5;
 
-			SOUNDS.boom.play();
+		SOUNDS.boom.play();
 		// AMOUNT OF CONFETTI
 		var AMOUNT_OF_CONFETTI = 30;
 
 		// Get center of peeps
 		var fullscreenOffsetX = config.x + simOffset.x;
 		var fullscreenOffsetY = config.y + simOffset.y;
-		if(!bounds || !bounds.x) bounds = getBoundsOfPoints(self.peeps); // OPTIONAL BOUNDS
-		var cx = bounds.x + bounds.width/2;
-		var cy = bounds.y + bounds.height/2;
+		if (!bounds || !bounds.x) bounds = getBoundsOfPoints(self.peeps); // OPTIONAL BOUNDS
+		var cx = bounds.x + bounds.width / 2;
+		var cy = bounds.y + bounds.height / 2;
 		cx += fullscreenOffsetX;
 		cy += fullscreenOffsetY;
 		cx *= 2; // retina
@@ -996,25 +1010,24 @@ function Sim(config){
 		self.winWord.ticker = 0;
 
 		// Place confetti
-		for(var i=0; i<AMOUNT_OF_CONFETTI; i++){
-			var angle = Math.random()*Math.TAU;
-			var burst = bounds.width/25;
-			var frame = Math.floor(Math.random()*5);
-			var spinSpeed = 0.02+Math.random()*0.03;
+		for (var i = 0; i < AMOUNT_OF_CONFETTI; i++) {
+			var angle = Math.random() * Math.TAU;
+			var burst = bounds.width / 25;
+			var frame = Math.floor(Math.random() * 5);
+			var spinSpeed = 0.02 + Math.random() * 0.03;
 			var confetti = {
 				x: cx,
 				y: cy,
-				vx: Math.cos(angle)*Math.random()*burst,
-				vy: Math.sin(angle)*Math.random()*burst - burst*0.25,
+				vx: Math.cos(angle) * Math.random() * burst,
+				vy: Math.sin(angle) * Math.random() * burst - burst * 0.25,
 				frame: frame,
 				spinSpeed: spinSpeed,
-				spin: Math.random()*Math.TAU,
-				g: 0.30+Math.random()*0.10,
-				flip: (Math.random()<0.5)
+				spin: Math.random() * Math.TAU,
+				g: 0.30 + Math.random() * 0.10,
+				flip: (Math.random() < 0.5)
 			};
 			self.confetti.push(confetti);
 		}
-
 	};
 
 	////////////////////////
@@ -1023,14 +1036,14 @@ function Sim(config){
 
 	self.STEP = 0;
 
-	self.save = function(){
+	self.save = function () {
 		self.STEP = 0;
 		self.networkConfig = self.getCurrentNetwork();
 	};
 
 	self._canPlayBonkSound = true;
 
-	self.reload = function(){
+	self.reload = function () {
 		var contagionLevel = self.contagion; // hack for sandbox: keep contagion the same
 		self.STEP = 0;
 		self._canPlayBonkSound = true;
@@ -1038,57 +1051,56 @@ function Sim(config){
 		self.contagion = contagionLevel;
 	};
 
-	self.nextStep = function(){
+	self.nextStep = function () {
 
 		// SOUND! If anyone can be infected, play Contagion sound.
 		// Otherwise play Bonk sound ONCE
-		var canBeInfected = self.peeps.filter(function(peep){
+		var canBeInfected = self.peeps.filter(function (peep) {
 			return !peep.infected && peep.isPastThreshold;
 		}).length;
-		if(canBeInfected>0){
+		if (canBeInfected > 0) {
 			_PLAY_CONTAGION_SOUND();
-		}else if(self._canPlayBonkSound){// && !isEveryoneInfected){
+		} else if (self._canPlayBonkSound) { // && !isEveryoneInfected){
 			self._canPlayBonkSound = false;
 
-			if(!self.options.NO_BONK){
+			if (!self.options.NO_BONK) {
 				SOUNDS.bonk.play();
 			}
 
 		}
 
 		// "Infect" the peeps who need to get infected
-		setTimeout(function(){
+		setTimeout(function () {
 			self.STEP++;
-		},400);
+		}, 400);
 
 		// CONNECTIONS: IF one is INFECTED and the other is PAST THRESHOLD, then ANIMATE
-		self.connections.forEach(function(c){
+		self.connections.forEach(function (c) {
 			c.animate();
 		});
 
 		// PEEPS: If not already infected & past threshold, infect
-		self.peeps.forEach(function(peep){
-			if((!peep.infected || peep.neutral) && (peep.isPastThreshold === true)){
+		self.peeps.forEach(function (peep) {
+			if ((!peep.infected || peep.neutral) && (peep.isPastThreshold === true)) {
 				// timeout for animation
-				setTimeout(function(){
+				setTimeout(function () {
 					peep.infect();
-				},333);
-			}
-			else if ((peep.infected || peep.neutral) && (peep.isPastThreshold === false)){
-				setTimeout(function(){
+				}, 333);
+			} else if ((peep.infected || peep.neutral) && (peep.isPastThreshold === false)) {
+				setTimeout(function () {
 					peep.uninfect();
-				},333);
+				}, 333);
 			}
 		});
 
 		// PEEPS: If NOT infected, NOT past threshold, and a friend IS INFECTED, then SHAKE
-		self.peeps.forEach(function(peep){
-			if(!peep.infected && !peep.isPastThreshold){
+		self.peeps.forEach(function (peep) {
+			if (!peep.infected && !peep.isPastThreshold) {
 				var friends = self.getFriendsOf(peep);
-				var infectedFriends = friends.filter(function(f){
+				var infectedFriends = friends.filter(function (f) {
 					return f.infected;
 				});
-				if(infectedFriends.length>0){
+				if (infectedFriends.length > 0) {
 					peep.shake();
 				}
 			}
@@ -1096,37 +1108,40 @@ function Sim(config){
 
 	};
 
-	self.calculatePercentage = function(){
+	self.calculatePercentage = function () {
 		var totalInfected = 0;
-		self.peeps.forEach(function(peep){
-			if (peep.isPastThreshold){
+		self.peeps.forEach(function (peep) {
+			if (peep.isPastThreshold) {
 				totalInfected++;
 			}
 		});
-		Simulations.PERCENTAGE_INFECTED =  Math.round(100 * (totalInfected / self.peeps.length));
-	}
+		Simulations.PERCENTAGE_INFECTED = Math.round(100 * (totalInfected / self.peeps.length));
+	};
 
 	///////////////////////////////
 	// secret keyboard interface //
 	///////////////////////////////
 
 	var _draggingPeep = null;
-	var _draggingOffset = {x:0,y:0};
+	var _draggingOffset = {
+		x: 0,
+		y: 0
+	};
 	var _keyHandlers = [];
-	var _resetConnectorCutter = function(){
+	var _resetConnectorCutter = function () {
 		self.connectorCutter.sandbox_state = 0;
 	};
-	_keyHandlers.push(subscribe("key/down/space",function(){
+	_keyHandlers.push(subscribe("key/down/space", function () {
 		_resetConnectorCutter();
 		self._startMove();
 	}));
-	self._startMove = function(){
-		if(!_draggingPeep){ // prevent double-activation
+	self._startMove = function () {
+		if (!_draggingPeep) { // prevent double-activation
 			var hoveredPeep = self.getHoveredPeep(0);
-			if(hoveredPeep){
+			if (hoveredPeep) {
 				_draggingPeep = hoveredPeep;
-				_draggingOffset.x = _draggingPeep.x-self.mouse.x;
-				_draggingOffset.y = _draggingPeep.y-self.mouse.y;
+				_draggingOffset.x = _draggingPeep.x - self.mouse.x;
+				_draggingOffset.y = _draggingPeep.y - self.mouse.y;
 
 				// Sound!
 				SOUNDS.squeak_down.volume(0.6);
@@ -1135,10 +1150,10 @@ function Sim(config){
 			}
 		}
 	};
-	_keyHandlers.push(subscribe("key/up/space",function(){
+	_keyHandlers.push(subscribe("key/up/space", function () {
 		self._stopMove();
 	}));
-	self._stopMove = function(){
+	self._stopMove = function () {
 
 		// Sound!
 		SOUNDS.squeak_up.volume(0.6);
@@ -1147,15 +1162,15 @@ function Sim(config){
 		_draggingPeep = null;
 
 	};
-	_keyHandlers.push(subscribe("key/down/1",function(){
+	_keyHandlers.push(subscribe("key/down/1", function () {
 		//_resetConnectorCutter(); //NOTE: Uncomment these if you want to add the shortcuts back for testing
 		//self._addPeepAtMouse(false);
 	}));
-	_keyHandlers.push(subscribe("key/down/2",function(){
+	_keyHandlers.push(subscribe("key/down/2", function () {
 		//_resetConnectorCutter();
 		//self._addPeepAtMouse(true);
 	}));
-	self._addPeepAtMouse = function(infected){
+	self._addPeepAtMouse = function (infected) {
 
 		// SOUND
 		SOUNDS.pop.play();
@@ -1163,30 +1178,30 @@ function Sim(config){
 		self.addPeep(self.mouse.x, self.mouse.y, infected);
 
 	};
-	_keyHandlers.push(subscribe("key/down/delete",function(){
+	_keyHandlers.push(subscribe("key/down/delete", function () {
 		//_resetConnectorCutter();
 		//self._deletePeep();
 	}));
-	self._deletePeep = function(){
+	self._deletePeep = function () {
 
 		// SOUND
 		SOUNDS.trash.play();
 
 		var toDeletePeep = self.getHoveredPeep(0);
-		if(toDeletePeep) self.removePeep(toDeletePeep);
+		if (toDeletePeep) self.removePeep(toDeletePeep);
 
 	};
 
-	self.getCurrentNetwork = function(){
+	self.getCurrentNetwork = function () {
 		var savedNetwork = {
 			contagion: self.contagion,
 			peeps: [],
 			connections: []
 		};
-		self.peeps.forEach(function(peep){
-			savedNetwork.peeps.push([Math.round(peep.x), Math.round(peep.y), peep.infected?1:0]);
+		self.peeps.forEach(function (peep) {
+			savedNetwork.peeps.push([Math.round(peep.x), Math.round(peep.y), peep.infected ? 1 : 0]);
 		});
-		self.connections.forEach(function(c){
+		self.connections.forEach(function (c) {
 			var fromIndex = self.peeps.indexOf(c.from);
 			var toIndex = self.peeps.indexOf(c.to);
 			var uncuttable = c.uncuttable ? 1 : 0;
@@ -1194,13 +1209,13 @@ function Sim(config){
 		});
 		return savedNetwork;
 	};
-	self.serialize = function(){
+	self.serialize = function () {
 		var savedNetwork = self.getCurrentNetwork();
-		return '{\n'+
-		'\t"contagion":'+savedNetwork.contagion+",\n"+
-		'\t"peeps":'+JSON.stringify(savedNetwork.peeps)+",\n"+
-		'\t"connections":'+JSON.stringify(savedNetwork.connections)+"\n"+
-		'}';
+		return '{\n' +
+			'\t"contagion":' + savedNetwork.contagion + ",\n" +
+			'\t"peeps":' + JSON.stringify(savedNetwork.peeps) + ",\n" +
+			'\t"connections":' + JSON.stringify(savedNetwork.connections) + "\n" +
+			'}';
 	};
 
 	////////////////
@@ -1208,176 +1223,184 @@ function Sim(config){
 	////////////////
 
 	// Add Peeps/Connections
-	self.addPeep = function(x, y, infected){
+	self.addPeep = function (x, y, infected) {
 		//ID of peep is the nth one added to the network, zero indexed.
 		var peepID = self.peeps.length;
-		var peep = new Peep({ x:x, y:y, infected:infected, id:peepID, sim:self });
+		var peep = new Peep({
+			x: x,
+			y: y,
+			infected: infected,
+			id: peepID,
+			sim: self
+		});
 		self.peeps.push(peep);
 		return peep;
 	};
-	self.removePeep = function(peep){
+	self.removePeep = function (peep) {
 		self.removeAllConnectedTo(peep); // delete all connections
 		removeFromArray(self.peeps, peep); // BYE peep
 	};
-	self.addConnection = function(from, to, uncuttable){
+	self.addConnection = function (from, to, uncuttable) {
 
 		// Don't allow connecting to self...
-		if(from==to) return;
+		if (from == to) return;
 
 		// ...or if already exists, in either direction
-		for(var i=0; i<self.connections.length; i++){
+		for (var i = 0; i < self.connections.length; i++) {
 			var c = self.connections[i];
-			if(c.from==from && c.to==to) return;
-			if(c.from==to && c.to==from) return;
+			if (c.from == from && c.to == to) return;
+			if (c.from == to && c.to == from) return;
 		}
 
 		// Otherwise, go ahead and add it!
-		var connection = new Connection({ from:from, to:to, uncuttable:uncuttable, sim:self });
+		var connection = new Connection({
+			from: from,
+			to: to,
+			uncuttable: uncuttable,
+			sim: self
+		});
 		self.connections.push(connection);
 		return connection;
 	};
 
-	self.orbitStartPosition = function(target, isPlayer){
+	self.orbitStartPosition = function (target, isPlayer) {
 		var playerOrbitLength = target.playerOrbits.length;
 		var enemyOrbitLength = target.aiOrbits.length;
 		//+1 to represent newest addition, also avoids divide by zero later
 		var totalLength = 1 + playerOrbitLength + enemyOrbitLength;
-		if (totalLength == 2){
+		if (totalLength == 2) {
 			var existingNodeLocation = (playerOrbitLength == 1 ? target.playerOrbits[0].a : target.aiOrbits[0].a);
 			return 3.142 + existingNodeLocation;
 		}
 		var counter = 0;
-		for(; counter < playerOrbitLength; counter++ ){
+		for (; counter < playerOrbitLength; counter++) {
 			//places each orbit equally around the peep
 			target.playerOrbits[counter].a = 3.142 - (6.284 * counter / totalLength);
 		}
 		var returnValue = 3.142 - (6.284 * counter / totalLength);
 		counter++;
 		//calculate this in the middle, as in between the two players' peeps, the middle peep can justifiably be either player's.
-		for(; counter < totalLength; counter++ ){
+		for (; counter < totalLength; counter++) {
 			//places each orbit equally around the peep
 			target.aiOrbits[counter - (playerOrbitLength + 1)].a = 3.142 - (6.284 * counter / totalLength);
 		}
 		return returnValue;
-	}
+	};
 
-	self.addOrbitConnection = function(target, isPlayer){
+	self.addOrbitConnection = function (target, isPlayer) {
 		var orbiter = {
-	    elt: null
-	    ,a:  self.orbitStartPosition(target, isPlayer)        // in radian. original position. pi=north
-	    ,r: 45         // radius
-	    ,da: 0.05     // in radian. speed of orbit
-	    ,x: 0
-	    ,y: 0
-	    // Center is actualy center (100, 100) minus
-	    // half the size of the orbiting object 15x15
-	    ,center: { x: (0), y: (0) }
-		}
-		if(isPlayer){
+			elt: null,
+			a: self.orbitStartPosition(target, isPlayer), // in radian. original position. pi=north
+			r: 45, // radius
+			da: 0.03, // in radian. speed of orbit
+			x: 0,
+			y: 0,
+			// Center is actualy center (100, 100) minus
+			// half the size of the orbiting object 15x15
+			center: {
+				x: (0),
+				y: (0)
+			},
+		};
+		if (isPlayer) {
 			target.playerOrbits.push(orbiter);
-		}
-		else target.aiOrbits.push(orbiter);
-	}
+		} else target.aiOrbits.push(orbiter);
+	};
 
 	//removes one orbits if player, removes all if enemy
 	//this is because player can only change one at a time, but we need to clear all enemy tokens to show the new state.
-	self.removeOrbitConnection = function(target, isPlayer){
-		if(isPlayer){
+	self.removeOrbitConnection = function (target, isPlayer) {
+		if (isPlayer) {
 			target.playerOrbits.pop();
-		}
-		else target.aiOrbits = [];
-	}
+		} else target.aiOrbits = [];
+	};
 
-	self.highlightEdges = function(peep, recursive){
+	self.highlightEdges = function (peep, recursive) {
 		var peepsToRecurse = []; //Stores peeps that are one degree away
-		for(var i=self.connections.length-1; i>=0; i--){
+		for (var i = self.connections.length - 1; i >= 0; i--) {
 			var c = self.connections[i];
-			if(c.from==peep || c.to==peep){ // in either direction
-				if(recursive){
+			if (c.from == peep || c.to == peep) { // in either direction
+				if (recursive) {
 					c.sprite.opacity = 1;
 					c.sprite.extraThickness = 0.25;
-					if (c.from==peep){
+					if (c.from == peep) {
 						self.highlightEdges(c.to, false);
+					} else {
+						self.highlightEdges(c.from, false);
 					}
 
-					else{
-						self.highlightEdges(c.from,false);
-					}
-
-				}
-				else{
-					if (c.sprite.opacity < 0.9){ //prevents overwriting 1st degree connection thickness
+				} else {
+					if (c.sprite.opacity < 0.9) { //prevents overwriting 1st degree connection thickness
 						c.sprite.opacity = 0.7;
 						c.sprite.extraThickness = 0;
 					}
 				}
-			}
-			else{
-				if(recursive){
-					if (c.sprite.opacity < 0.7){ //prevents overwriting 2nd degree connection thickness
+			} else {
+				if (recursive) {
+					if (c.sprite.opacity < 0.7) { //prevents overwriting 2nd degree connection thickness
 						c.sprite.opacity = 0.2;
 						c.sprite.extraThickness = -0.3;
 					}
 				}
 			}
 		}
-	}
+	};
 
-	self.resetEdges = function(){
-		for(var i=self.connections.length-1; i>=0; i--){
+	self.resetEdges = function () {
+		for (var i = self.connections.length - 1; i >= 0; i--) {
 			var c = self.connections[i];
 			c.sprite.opacity = 0.5;
 			c.sprite.extraThickness = 0;
 		}
-	}
+	};
 
-	self.sendClick = function(nodeID, action){
+	self.sendClick = function (nodeID, action) {
 		var payload = [];
 		payload.push(nodeID);
 		payload.push(action);
-		Simulations.sendServerMessage(new Message(payload,"CLICK_TOKEN"));
-	}
+		Simulations.sendServerMessage(new Message(payload, "CLICK_TOKEN"));
+	};
 
-	self.getFriendsOf = function(peep){
+	self.getFriendsOf = function (peep) {
 
 		var friends = [];
-		for(var i=0; i<self.connections.length; i++){ // in either direction
+		for (var i = 0; i < self.connections.length; i++) { // in either direction
 			var c = self.connections[i];
 
-			if(c.from==peep && !c.to.neutral){
+			if (c.from == peep && !c.to.neutral) {
 				friends.push(c.to);
 			}
-			if(c.to==peep && !c.from.neutral) friends.push(c.from);
+			if (c.to == peep && !c.from.neutral) friends.push(c.from);
 		}
 		return friends;
 	};
-	self.getHoveredPeep = function(mouseBuffer){
+	self.getHoveredPeep = function (mouseBuffer) {
 		mouseBuffer = mouseBuffer || 0;
-		return self.peeps.find(function(peep){
+		return self.peeps.find(function (peep) {
 			return peep.hitTest(self.mouse.x, self.mouse.y, mouseBuffer);
 		});
 	};
-	self.tryCuttingConnections = function(line){
+	self.tryCuttingConnections = function (line) {
 		var wasLineCut = 0;
-		for(var i=self.connections.length-1; i>=0; i--){ // going BACKWARDS coz killing connections
+		for (var i = self.connections.length - 1; i >= 0; i--) { // going BACKWARDS coz killing connections
 			var c = self.connections[i];
-			if(c.hitTest(line)){
-				if(c.uncuttable){ // can't cut uncuttables!
+			if (c.hitTest(line)) {
+				if (c.uncuttable) { // can't cut uncuttables!
 					wasLineCut = -1;
 					c.shake();
-				}else{
+				} else {
 					wasLineCut = 1;
-					self.connections.splice(i,1);
+					self.connections.splice(i, 1);
 				}
 			}
 		}
 		return wasLineCut;
 	};
-	self.removeAllConnectedTo = function(peep){
-		for(var i=self.connections.length-1; i>=0; i--){ // backwards index coz we're deleting
+	self.removeAllConnectedTo = function (peep) {
+		for (var i = self.connections.length - 1; i >= 0; i--) { // backwards index coz we're deleting
 			var c = self.connections[i];
-			if(c.from==peep || c.to==peep){ // in either direction
-				self.connections.splice(i,1); // remove!
+			if (c.from == peep || c.to == peep) { // in either direction
+				self.connections.splice(i, 1); // remove!
 			}
 		}
 	};
@@ -1388,8 +1411,8 @@ function Sim(config){
 	//////////////
 
 	// Start Uncuttable?
-	if(self.options.startUncuttable){
-		self.networkConfig.connections.forEach(function(c){
+	if (self.options.startUncuttable) {
+		self.networkConfig.connections.forEach(function (c) {
 			c[2] = 1;
 		});
 	}
@@ -1397,16 +1420,15 @@ function Sim(config){
 	self.init();
 
 	// Start randomize positions?
-	if(self.options.randomStart){
+	if (self.options.randomStart) {
 		var r = {
-			x:self.options.randomStart,
-			y:0
+			x: self.options.randomStart,
+			y: 0
 		};
-		self.peeps.forEach(function(peep){
-			var randomPush = rotateVector(r, Math.random()*Math.TAU);
+		self.peeps.forEach(function (peep) {
+			var randomPush = rotateVector(r, Math.random() * Math.TAU);
 			peep.x += randomPush.x;
 			peep.y += randomPush.y;
 		});
 	}
-
 }

@@ -34,6 +34,7 @@ module.exports.setupExperiment = setupExperiment;
 
 //Wrapper for each pairwise experiment
 function setupExperiment(context) { //COULD do this without websockets. Not sure of the value of rewriting though.
+    var len;
     var serverStrategy;
     var experimentStrategy;
     ctx = context;
@@ -47,7 +48,7 @@ function setupExperiment(context) { //COULD do this without websockets. Not sure
     };
     ws.onerror = function (err) {
         console.log('err Experimental: ', err);
-    }
+    };
     ws.onmessage = function (event) {
         parseEventExperiment(event);
     };
@@ -62,7 +63,7 @@ function setupExperiment(context) { //COULD do this without websockets. Not sure
             experimentsList.push([x, x]);
         }
     } else if (EXPERIMENT_MODE == "NoReflexive") {
-        var len = strategyNames.length; //Used to make code more readable
+        len = strategyNames.length; //Used to make code more readable
         for (x = 0; x < len; x++) {
             for (y = x; y < len; y++) {
                 if (y != x) {
@@ -71,7 +72,7 @@ function setupExperiment(context) { //COULD do this without websockets. Not sure
             }
         }
     } else {
-        var len = strategyNames.length; //Used to make code more readable
+        len = strategyNames.length; //Used to make code more readable
         for (x = 0; x < len; x++) {
             for (y = x; y < len; y++) {
                 experimentsList.push([x, y]);
@@ -212,7 +213,7 @@ function parseEventExperiment(message) {
 function sendServerMessage(msg) {
     if (ws.readyState == 0) { //This version connects too quickly to the server! Must have a short wait at beginning.
         setTimeout(() => {
-            sendServerMessage(msg)
+            sendServerMessage(msg);
         }, 250);
     } else {
         try {
@@ -220,7 +221,7 @@ function sendServerMessage(msg) {
         } catch (err) {
             console.log(err);
             setTimeout(() => {
-                sendServerMessage(msg)
+                sendServerMessage(msg);
             }, 250);
             return;
         }

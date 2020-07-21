@@ -20,12 +20,12 @@ Server.ExistingTokensBias = 0; //Increases likelihood of placing tokens on nodes
 console.info("Server starting!");
 //Shuffles lists
 shuffle = function (a) {
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
-}
+};
 
 //Creates a permutation of the 4 layouts so users get random order
 Server.generatePerm = function () {
@@ -35,7 +35,7 @@ Server.generatePerm = function () {
     list.push(list[i]);
   }
   return list;
-}
+};
 
 //need nodeJS and uuid on the server
 //Use v4 as it is random and therefore hard to predict
@@ -74,7 +74,7 @@ if (Server.EnableAWS) {
       console.log("Connected to AWS MTurk");
       console.log('Account balance: ' + data.AvailableBalance);
     }
-  })
+  });
 }
 
 var app = express();
@@ -100,7 +100,7 @@ const wss = new WebSocketServer({
 var client = null;
 //Doesn't log to database when local, as local is usually for testing. 
 if (!Server.LocalMode) {
-  if(!process.env.DATABASE_URL) {
+  if (!process.env.DATABASE_URL) {
     console.log("DATABASE_URL is not initialised");
     console.log("Initialising DATABASE_URL from db_config.json");
     var dbConfig = require("./db_config.json");
@@ -136,7 +136,7 @@ Server.LoadExperiment = function (times) {
       Server.LoadExperiment(times + 1);
     }, 250);
   }
-}
+};
 
 if (Server.ExperimentMode) {
   Server.LoadExperiment(0);
@@ -145,79 +145,79 @@ if (Server.ExperimentMode) {
 //Handles storing of data to database
 Server.sendSqlQuery = async function (query) {
   if (!Server.LocalMode && !Server.ExperimentMode) { //Doesn't use the database if we're running locally/experiments
-  console.info(query);  
-  try {
-    var res = await client.query(query);
-    return res;
-  } catch (err) {
-    Server.databaseFailure(err, query);
-    return false;
+    console.info(query);
+    try {
+      var res = await client.query(query);
+      return res;
+    } catch (err) {
+      Server.databaseFailure(err, query);
+      return false;
+    }
   }
-}
-}
+};
 
 //Handles storing of game data to database
 Server.sendSqlQueryGame = function (query, game) {
   if (!Server.LocalMode && !Server.ExperimentMode) { //Doesn't use the database if we're running locally/experiments
-  console.info(query);
-  try {
-    client.query(query, function (err, result) {
-      if (err) {
-        //Sends email if failure adding to db
-        Server.databaseFailureGame(err, game, query);
-      }
-    });
-  } catch (err) {
-    Server.databaseFailureGame(err, game, query);
+    console.info(query);
+    try {
+      client.query(query, function (err, result) {
+        if (err) {
+          //Sends email if failure adding to db
+          Server.databaseFailureGame(err, game, query);
+        }
+      });
+    } catch (err) {
+      Server.databaseFailureGame(err, game, query);
+    }
   }
-}
-}
+};
 
 //Emails us if there's a problem with the DB and handles game logic
 Server.databaseFailureGame = function (err, game, query) {
   console.error(err);
-  
+
   //only emails at most once per hour
   if (Date.now() - Server.lastAlertTime > 3600000) {
     Server.lastAlertTime = Date.now();
     Server.sendMail("URGENT: Error Adding to Database! " + query, err);
   }
-  
+
   //Makes players think the other disconnected
   //Suppress errors if either player cannot be reached.
   try {
     Server.sendResults(1, game, "disconnect");
-  } catch (err) {}
+  } catch (e) {}
   try {
     Server.sendResults(2, game, "disconnect");
-  } catch (err) {}
-  
+  } catch (e) {}
+
   game.killGame(false, game);
-}
+};
 
 //Emails us if there's a problem with the DB
 Server.databaseFailure = function (err, query) {
   console.error(err);
-  
+
   //only emails at most once per hour
   if (Date.now() - Server.lastAlertTime > 3600000) {
     Server.lastAlertTime = Date.now();
     Server.sendMail("URGENT: Error Adding to Database! " + query, err);
   }
-}
+};
 
 
 //Sends an email to the contagion account for critical information.
 Server.sendMail = function (emailSubject, errtext) {
   var fullText = "Error: " + errtext;
-  
+
   var mailOptions = {
     from: 'contagiongamesoton@gmail.com',
     to: 'contagiongamesoton@gmail.com', //Can be changed to whoever. May be better to setup forwarding on this account.
     subject: emailSubject,
     text: fullText
   };
-  
+
   transporter.sendMail(mailOptions, function (error, info) {
     if (error) {
       console.error(error);
@@ -225,8 +225,8 @@ Server.sendMail = function (emailSubject, errtext) {
       console.info('Email sent: ' + info.response);
     }
   });
-  
-}
+
+};
 
 //Initialises a list containing the next layout to be used for each topology, so new players get different layouts
 //N.B. This is not used for returning players - they will play new layouts/topologies based on their last played game
@@ -235,12 +235,12 @@ Server.initialiseTopologyLayoutIndexes = function () {
   for (var i = 0; i < serverConfigs.length; i++) { //If 2 topologies, will be length 2 (layouts do not count)
     topologyLayoutIndexes.push(0);
   }
-  
+
   Server.CurrentTopologyLayoutIndexes = topologyLayoutIndexes;
   Server.CurrentTopologyIndex = 0; //Similarly to how the list tracks layouts, this variable tracks the next topology to be used
-}
+};
 
-module.exports = { 
+module.exports = {
   //Allows other files to use the initialiseTopologyLayoutIndexes function
   initialiseTopologyLayoutIndexes: function () {
     Server.initialiseTopologyLayoutIndexes();
@@ -297,7 +297,7 @@ class GameState {
     this.flippedNodes = []; //Records all nodes that have changed since last round
     this.playerOneTime = -1; //Starts just before sending config or updated state, ends as we identify whose moves we recieved.
     this.playerTwoTime = -1;
-    this.playerTwoTimeOffset = 10000000000 //large value for debug, should only appear if something has gone wrong.
+    this.playerTwoTimeOffset = 10000000000; //large value for debug, should only appear if something has gone wrong.
     this.playerOneLastHeartbeat = Date.now(); //uses now() as this is created when the first player joins
     this.playerTwoLastHeartbeat = -1;
     this.timer = setInterval(this.heartbeatHandler, Server.heartbeatCheckFrequency, this); //Checks heartbeats
@@ -326,7 +326,7 @@ class GameState {
 }
 
 //Records game data and sends it as a query to the database
-GameState.prototype.addGameToDatabase = function (query) {
+GameState.prototype.addGameToDatabase = function () {
   var timestamp = new Date();
   timestamp = timestamp.toISOString().slice(0, -1); //removes the Z from the timestamp. Not strictly necessary as the DB will truncate, but this avoids a warning being produced.
   var infectedPeepsString = "";
@@ -348,7 +348,7 @@ GameState.prototype.addGameToDatabase = function (query) {
   var p2_str = this.playerTwoLayoutID.replace("Topology_newer", "").split("_");
   var query = `INSERT INTO master_games_table VALUES ('${this.gameID}', '${timestamp}', '${p1id}', '${p2id}', '${infectedPeepsString}', '${Server.RemoveOldNodes}', ${p1_str[0]}, ${p1_str[1]}, ${p2_str[0]}, ${p2_str[1]});`;
   Server.sendSqlQueryGame(query, this);
-}
+};
 
 //updates the database game record if P1 or P2 changes
 GameState.prototype.updateGameDatabaseEntry = function () {
@@ -356,7 +356,7 @@ GameState.prototype.updateGameDatabaseEntry = function () {
   var p2id = (this.playerTwo != null && this.playerTwo != "AI") ? this.playerTwo.id : "AI";
   var query = `UPDATE master_games_table SET player_one_id = '${p1id}', player_two_id = '${p2id}' WHERE game_id = '${this.gameID}';`;
   Server.sendSqlQueryGame(query, this);
-}
+};
 
 //Adds a new row in player_actions_table to record the actions taken this round
 GameState.prototype.addMovesToDatabase = function () {
@@ -399,7 +399,7 @@ GameState.prototype.addMovesToDatabase = function () {
   Server.sendSqlQueryGame(query, this);
   //Resets flipped nodes for next round
   this.flippedNodes = [];
-}
+};
 
 //Takes moves submitted by a player and stores them
 //Also moves the game on if possible (i.e.starts ai's turn, or begins infection process)
@@ -407,7 +407,11 @@ GameState.prototype.addPlayerMoves = function (moves, isPlayerOne, opponentReady
   //Performs AI moves before recording new player moves (to prevent bias)
   this.aiCheck();
   //Sets either the server's recording of p1 moves or p2 moves depending o who sent it
-  isPlayerOne ? (this.playerOneMoves = moves) : (this.playerTwoMoves = moves);
+  if (isPlayerOne) {
+    this.playerOneMoves = moves;
+  } else {
+    this.playerTwoMoves = moves;
+  }
   //If p2 has submitted moves OR is against ai
   if (opponentReady) {
     //Simulates a real opponent to the human player by sometimes waiting before making a move
@@ -422,7 +426,7 @@ GameState.prototype.addPlayerMoves = function (moves, isPlayerOne, opponentReady
     var recipient = isPlayerOne ? this.playerOne : this.playerTwo;
     Server.sendClientMessage(new Message(null, "DEFERRED_STATE_TOKEN"), recipient);
   }
-}
+};
 
 //This is a very naive version that might wait a few seconds. Should be enough to convince users, but can revisit if not.
 GameState.prototype.fakeAiWait = function () {
@@ -440,7 +444,7 @@ GameState.prototype.fakeAiWait = function () {
     //Begins infection phase
     this.newTurn();
   }
-}
+};
 
 //Is called when player 1 submits moves - calls the generic addPlayerMoves, plus extra logic to handle waiting for opponent or hot-swapping AI
 GameState.prototype.addPlayerOneMoves = function (moves) {
@@ -461,7 +465,7 @@ GameState.prototype.addPlayerOneMoves = function (moves) {
       this.addPlayerOneTimer(60 + this.playerTwoTimeOffset - (Date.now() - this.gameStartTime));
     }
   }
-}
+};
 
 //Lets player one know how long player two has left to submit
 GameState.prototype.addPlayerOneTimer = function (duration) {
@@ -472,14 +476,14 @@ GameState.prototype.addPlayerOneTimer = function (duration) {
     this.addPlayerTwoAI();
   }, duration);
   Server.sendClientMessage(new Message([1, duration - 1], "TIMER_TOKEN"), game.playerOne);
-}
+};
 
 //Similar to addPlayerOneMoves, extra logic is not needed here as any extra waiting logic implemented elsewhere.
 GameState.prototype.addPlayerTwoMoves = function (moves) {
   clearTimeout(this.playerTwoTimer);
   this.playerTwoTime = (Date.now() - this.gameStartTime) - this.playerTwoTimeOffset;
   this.addPlayerMoves(moves, false, (this.playerOne == "AI" || this.playerOneMoves.length > 0));
-}
+};
 
 //returns the AI player's moves if the game is using an AI
 //returns null if the game is run only by AI, and should be shut down.
@@ -496,7 +500,7 @@ GameState.prototype.aiCheck = function () {
     }
   }
   //no AI players, so do nothing
-}
+};
 
 //Checks the game to ensure that both players remain connected
 //Kills the game and causes the disconnector to lose if doesn't respond in time
@@ -525,7 +529,7 @@ GameState.prototype.heartbeatHandler = function (game) {
       game.killGame(false, game);
     }
   }
-}
+};
 
 //Stores player clicks in the database
 GameState.prototype.registerClick = function (playerID, nodeID, action) {
@@ -533,13 +537,13 @@ GameState.prototype.registerClick = function (playerID, nodeID, action) {
   var timestamp = Date.now() - this.gameStartTime;
   var query = `INSERT INTO player_clicks_table VALUES ('${this.gameID}', ${playerID}, '${nodeID}', '${action}', '${timestamp}', '${this.roundNumber}');`;
   Server.sendSqlQueryGame(query, this);
-}
+};
 
 //Removes game from the server's list of active games
 GameState.prototype.removeGame = async (game) => {
   var index = Server.CurrentGames.indexOf(game);
   Server.CurrentGames.splice(index, 1);
-}
+};
 
 //naturalEnd is true when the game ends by reaching the max number of rounds.
 GameState.prototype.killGame = function (naturalEnd, game, causer) {
@@ -589,7 +593,7 @@ GameState.prototype.killGame = function (naturalEnd, game, causer) {
 
   //Removes this game from list of active games
   this.removeGame(game);
-}
+};
 
 //After getting moves from both players
 //Runs infection logic, updates database, updates player scores & sends players the new state.
@@ -612,7 +616,7 @@ GameState.prototype.newTurn = function () {
       Server.startTimer(this, 0, 31, false);
     }
   }
-}
+};
 
 //Calculates players' scores based on previous round + nodes infected this round
 GameState.prototype.updateScores = function () {
@@ -641,7 +645,7 @@ GameState.prototype.updateScores = function () {
   this.playerOneScoreList.push(this.playerOneScore);
   this.playerTwoScore += p2additionalScore;
   this.playerTwoScoreList.push(this.playerTwoScore);
-}
+};
 
 //Sends the clients an array of length equal to the number of peeps
 //Each element is a pair of (infectedState, enemytokens)
@@ -651,17 +655,18 @@ GameState.prototype.updateScores = function () {
 GameState.prototype.updateClients = function () {
   var peepsToSend = [];
   var movesToSend = [];
+  var payload = [];
 
   if (this.playerOne !== "AI" && this.playerOne !== null) {
 
     this.formattedPeeps.forEach(function (peep) {
       peepsToSend.push(peep[2]);
-    })
+    });
     this.playerTwoMoves.forEach(function (move) {
       movesToSend.push(move);
-    })
+    });
 
-    var payload = [peepsToSend, movesToSend, this.playerOneScore];
+    payload = [peepsToSend, movesToSend, this.playerOneScore];
     Server.sendClientMessage(new Message(payload, "UPDATE_STATE_TOKEN"), this.playerOne);
   }
 
@@ -678,15 +683,15 @@ GameState.prototype.updateClients = function () {
       else {
         peepsToSend.push(1 - peep[2]);
       }
-    })
+    });
     this.playerOneMoves.forEach(function (move) {
       movesToSend.push(move);
-    })
+    });
 
-    var payload = [peepsToSend, movesToSend, this.playerTwoScore];
+    payload = [peepsToSend, movesToSend, this.playerTwoScore];
     Server.sendClientMessage(new Message(payload, "UPDATE_STATE_TOKEN"), this.playerTwo);
   }
-}
+};
 
 //NB: INFECTED/UNINFECTED IS FROM POV OF PLAYER1!
 GameState.prototype.performInfections = function () {
@@ -763,9 +768,7 @@ GameState.prototype.performInfections = function () {
     }
     peep[2] = updatedPeeps[index][2];
   });
-
-
-}
+};
 
 //Handles logic regarding ai strategies
 GameState.prototype.aiTurn = function (aiMoves, friendlyNodeStatus, strategy) {
@@ -777,23 +780,25 @@ GameState.prototype.aiTurn = function (aiMoves, friendlyNodeStatus, strategy) {
     this.aiTurnPredetermined(aiMoves, oneNodeOnly);
     return;
   }
+  var aiTurnSimpleGreedy;
+  var ctx;
   switch (strategy) {
     //Has one case for each strategy type
     case "SimpleGreedy":
-      var aiTurnSimpleGreedy = require('./MyopicGreedy.js'); //Calls the external file
-      var ctx = this; //Allows the external file to access the same resources as from here
+      aiTurnSimpleGreedy = require('./MyopicGreedy.js'); //Calls the external file
+      ctx = this; //Allows the external file to access the same resources as from here
       //don't need to remove worst token, so 2nd param false. No anticipation so 5th param ""
       aiTurnSimpleGreedy(aiMoves, false, ctx, friendlyNodeStatus, "");
       break;
     case "GreedyPredictsHigh":
-      var aiTurnSimpleGreedy = require('./MyopicGreedy.js');
-      var ctx = this;
+      aiTurnSimpleGreedy = require('./MyopicGreedy.js');
+      ctx = this;
       var laplacian = clone(laplaciansList[this.laplacianID]);
       aiTurnSimpleGreedy(aiMoves, false, ctx, friendlyNodeStatus, "High", laplacian);
       break;
     case "GreedyPredictsGreedy":
-      var aiTurnSimpleGreedy = require('./MyopicGreedy.js');
-      var ctx = this;
+      aiTurnSimpleGreedy = require('./MyopicGreedy.js');
+      ctx = this;
       aiTurnSimpleGreedy(aiMoves, false, ctx, friendlyNodeStatus, "Greedy"); //don't need to remove worst token, so just false
       break;
     case "Equilibrium":
@@ -820,7 +825,7 @@ GameState.prototype.aiTurn = function (aiMoves, friendlyNodeStatus, strategy) {
   } else {
     return aiMoves[0];
   }
-}
+};
 
 //Simple wrapper to determine whether we are playing from the server AI's POV (used in regular games)
 //or the experiment opposing AI(fake opponent played by the same type of ai)
@@ -830,7 +835,7 @@ GameState.prototype.isServerPlayer = function (friendlyNodeStatus) {
   } else {
     return false;
   }
-}
+};
 
 //random strategy
 GameState.prototype.aiTurnRandom = function (aiMoves, oneNodeOnly, friendlyNodeStatus) {
@@ -877,7 +882,7 @@ GameState.prototype.aiTurnRandom = function (aiMoves, oneNodeOnly, friendlyNodeS
   //     console.error("ERROR: NOT DEVELOPED FOR EXPERIMENTAL AI YET!");
   //   }
   //}
-}
+};
 
 
 
@@ -912,7 +917,7 @@ GameState.prototype.aiTurnEquilibrium = function (aiMoves, oneNodeOnly, friendly
 
     var laplacian = clone(laplaciansList[this.laplacianID]);
 
-    for (var i = 0; i < friendlyMoves.length; i++) {
+    for (i = 0; i < friendlyMoves.length; i++) {
       //NB: Player/AI represent perspective of who is running this code - both could be AI.
       laplacian[friendlyMoves[i]][friendlyMoves[i]]++; //adds p_b for the AI player's ith token
       laplacian[enemyMoves[i]][enemyMoves[i]]++; //p_a for player's ith token
@@ -923,7 +928,7 @@ GameState.prototype.aiTurnEquilibrium = function (aiMoves, oneNodeOnly, friendly
     var maxScore = 0;
     var bestNode = -1;
     //Loops through all nodes to find the node that will provide best improvement based on the equilibrium strategy
-    for (var i = 0; i < Server.NumberOfNodes; i++) {
+    for (i = 0; i < Server.NumberOfNodes; i++) {
       //Creates vector of probabilities that each node will be owned by the agent running this code.
       var probabilitiesVector = this.createProbabilitiesVector(laplacian, friendlyMovesVector, i);
       //Sums these probabilities to get a fitness (i.e. maximise score)
@@ -950,7 +955,7 @@ GameState.prototype.aiTurnEquilibrium = function (aiMoves, oneNodeOnly, friendly
   } else {
     console.error("ERROR! This algorithm hasn't been developed for non-incremental token protocol yet!");
   }
-}
+};
 
 //Creates vector of probabilities that each node will be owned by the agent running this code.
 GameState.prototype.createProbabilitiesVector = function (laplacian, friendlyMovesVector, i) {
@@ -963,24 +968,25 @@ GameState.prototype.createProbabilitiesVector = function (laplacian, friendlyMov
   laplacian[i][i]--;
   friendlyMovesVector[i]--; //reverts the change to this var to avoid an expensive clone operation
   return probVector;
-
-}
+};
 
 //Determines how good the probability vector is
 GameState.prototype.calculateFitness = function (probabilitiesVector) {
   return extMath.sum(probabilitiesVector); //adds all values in the array
-}
+};
 
 //Old test method - I kept it in to see how you could go about testing things, but it's mostly overtaken by ExperimentalAi.js
 //This examines the impact of different exponent strength (how much the AI prefers to add to high/low degree nodes) and existing token bias
 GameState.prototype.aiTurnDegreeSensitiveTest = function (aiMoves, oneNodeOnly, lowDegreeSensitivity, friendlyNodeStatus) {
-  return;
+  if (true) {
+    return;
+  }
   var monteOrig = [];
   for (var i = 0; i < Server.NumberOfNodes; i++) {
     monteOrig.push(0);
   }
 
-  for (var i = 0; i < 6; i++) {
+  for (i = 0; i < 6; i++) {
     //Tests with various exponent strengths
     ExponentStrength = 0.25 + i * 0.05;
     for (var j = 0; j < 5; j++) {
@@ -1000,10 +1006,11 @@ GameState.prototype.aiTurnDegreeSensitiveTest = function (aiMoves, oneNodeOnly, 
     }
 
   }
-}
+};
 
 //Adds tokens based on the degrees of each node.
 GameState.prototype.aiTurnDegreeSensitive = function (aiMoves, oneNodeOnly, lowDegreeSensitivity, friendlyNodeStatus, monte) {
+  var i, token, nodeWeight;
   if (Server.TokenProtocol == "Incremental") {
     var nodeWeights = [];
     //I repurpose the laplacian here - taking the diagonal just gives me the degrees of each node!
@@ -1013,25 +1020,25 @@ GameState.prototype.aiTurnDegreeSensitive = function (aiMoves, oneNodeOnly, lowD
     //NOTE: We decided that this makes analysing games too difficult, so you can ignore this block.
     if (Server.ExistingTokensBias != 0) {
       if (this.isServerPlayer(friendlyNodeStatus)) {
-        for (var i = 0; i < this.prevAiMoves.length; i++) { //Is agnostic of opponent's moves
-          var token = this.prevAiMoves[i];
+        for (i = 0; i < this.prevAiMoves.length; i++) { //Is agnostic of opponent's moves
+          token = this.prevAiMoves[i];
           laplacian[token][token] += Server.ExistingTokensBias;
         }
       } else { //This is the above but for when the experimental opposition AI is playing.
-        for (var i = 0; i < this.length; i++) {
-          var token = this.playerOneMoves[i];
+        for (i = 0; i < this.length; i++) {
+          token = this.playerOneMoves[i];
           laplacian[token][token] += Server.ExistingTokensBias;
         }
       }
     }
-    for (var i = 0; i < Server.NumberOfNodes; i++) {
+    for (i = 0; i < Server.NumberOfNodes; i++) {
       var nodeDegree = laplacian[i][i]; //Gets the node degree from the laplacian diagonal
 
       //Assigns a weight (i.e. relative likelihood of being chosen) to the node depending on # degrees and high/low preference
       if (lowDegreeSensitivity) {
-        var nodeWeight = extMath.exp(ExponentStrength * nodeDegree * -1); //negative exponent weights high degree nodes lower
+        nodeWeight = extMath.exp(ExponentStrength * nodeDegree * -1); //negative exponent weights high degree nodes lower
       } else {
-        var nodeWeight = extMath.exp(ExponentStrength * nodeDegree); //e^(strength*degree)
+        nodeWeight = extMath.exp(ExponentStrength * nodeDegree); //e^(strength*degree)
       }
       nodeWeights.push(nodeWeight);
     }
@@ -1063,7 +1070,7 @@ GameState.prototype.aiTurnDegreeSensitive = function (aiMoves, oneNodeOnly, lowD
   } else {
     console.error("ERROR! This algorithm hasn't been developed for non-incremental protocol yet!");
   }
-}
+};
 
 //Samples a node based on the distribution of weights.
 //The weights are summed to give a maxValue, and starting from node 0, we check if the random value is 
@@ -1077,7 +1084,7 @@ GameState.prototype.chooseFromDistribution = function (distribution, maxValue) {
     }
   }
   console.error("ERROR CHOOSING FROM DISTRIBUTION!");
-}
+};
 
 //AI strategy that begins random, then does whatever the opponent did last.
 GameState.prototype.aiTurnMirror = function (aiMoves, oneNodeOnly, friendlyNodeStatus) {
@@ -1098,7 +1105,7 @@ GameState.prototype.aiTurnMirror = function (aiMoves, oneNodeOnly, friendlyNodeS
     peepIndex = this.playerTwoMoves[this.playerTwoMoves.length - 1]; //Same as above but for when AI is representing the player
     aiMoves.push(peepIndex);
   }
-}
+};
 
 //Performs moves based on the predetermined moves at the top of this class.
 GameState.prototype.aiTurnPredetermined = function (aiMoves, oneNodeOnly) {
@@ -1110,7 +1117,7 @@ GameState.prototype.aiTurnPredetermined = function (aiMoves, oneNodeOnly) {
   //NOTE: Hack because its an insidious problem and this is just needed for the trial
   this.playerTwoMoves = this.prevAiMoves;
   return;
-}
+};
 
 //Wrapper for the calls to random, so we can see how many times it's called.
 //This is useful for when we're using random seeds, so we can see if we can determine what number is generated when
@@ -1119,12 +1126,12 @@ GameState.prototype.aiTurnPredetermined = function (aiMoves, oneNodeOnly) {
 GameState.prototype.randStrategy = function () {
   this.rngStratCount++;
   return this.rngStrategy();
-}
+};
 
 GameState.prototype.randThreshold = function () {
   this.rngThreshCount++;
   return this.rngThreshold();
-}
+};
 
 //Adds a second human player to the game 
 GameState.prototype.addPlayerTwo = function (ws) {
@@ -1135,14 +1142,14 @@ GameState.prototype.addPlayerTwo = function (ws) {
   this.playerTwoLastHeartbeat = Date.now();
   //adds the game to the database now we have a full game.
   this.updateGameDatabaseEntry();
-}
+};
 
 //Similar to above, but for adding AIs (e.g. when we want PvAI, or a player 2 hasn't arrived in time)
 GameState.prototype.addPlayerTwoAI = function () {
   this.aiCheckTimer = null;
   this.playerTwo = "AI";
   this.playerTwoScore = 0;
-}
+};
 
 //When a player doesn't submit a move in time
 GameState.prototype.outOfTime = function (isPlayerOne) {
@@ -1159,7 +1166,7 @@ GameState.prototype.outOfTime = function (isPlayerOne) {
     }
     this.killGame(false, this);
   }
-}
+};
 
 //########################################################################################END GAMESTATE
 
@@ -1186,7 +1193,7 @@ Server.validateGame = function (ws) {
   if (game.roundNumber > 10) {
     console.err("ERR: User submit moves but game already over.");
   } else return game;
-}
+};
 
 //Receives & stores the players' moves
 Server.submitMoves = function (message, ws) {
@@ -1208,29 +1215,30 @@ Server.submitMoves = function (message, ws) {
   } else {
     game.addPlayerTwoMoves(message);
   }
-}
+};
 
 //Creates a config for the next game
 //perm = list of players' layout permutations, stored in their websocket. Only for ai vs player
 Server.getConfig = function (twoPlayerMode, perm) {
+  var topologyID, layoutID, p2LayoutID;
   //If not ai vs player OR player doesn't have a permutation list for whatever reason
   if (perm == undefined) {
     //picks a topology at random
-    var topologyID = Server.CurrentTopologyIndex;
+    topologyID = Server.CurrentTopologyIndex;
     //Lets the server choose the next topology in the looping list next time
     Server.CurrentTopologyIndex = (Server.CurrentTopologyIndex + 1) % serverConfigs.length;
     //P1 Topology
-    var layoutID = Server.CurrentTopologyLayoutIndexes[topologyID];
+    layoutID = Server.CurrentTopologyLayoutIndexes[topologyID];
     //Also chooses the next layout of that particular topology's looping list next time
     Server.CurrentTopologyLayoutIndexes[topologyID] = (Server.CurrentTopologyLayoutIndexes[topologyID] + 1) % serverConfigs[topologyID].length;
-    var p2LayoutID = Server.CurrentTopologyLayoutIndexes[topologyID];
+    p2LayoutID = Server.CurrentTopologyLayoutIndexes[topologyID];
   } else {
     //Gets the topology & layout from the perm value
     //NOTE: NPerm changes one layer above this in the newgame method
     var mixedTopologyID = perm[0];
-    var topologyID = Math.floor(mixedTopologyID / serverConfigs.length);
-    var layoutID = mixedTopologyID % serverConfigs.length;
-    var p2LayoutID = layoutID; //TODO: make this work outside the trial
+    topologyID = Math.floor(mixedTopologyID / serverConfigs.length);
+    layoutID = mixedTopologyID % serverConfigs.length;
+    p2LayoutID = layoutID; //TODO: make this work outside the trial
   }
   if (twoPlayerMode) {
     //For a 2 player game, we want them to use the same topology but different layout. If there's no player two, the assignment on the previous line won't have any effect.
@@ -1249,9 +1257,9 @@ Server.getConfig = function (twoPlayerMode, perm) {
     //Stores laplacian ID for easy retrieval in the AI strategies that use it
     laplacianID: serverConfigs[topologyID][layoutID].laplacianID,
     tokenProtocol: Server.TokenProtocol
-  }
+  };
   return config;
-}
+};
 
 //Boilerplate websocket code. Not much to change here.
 wss.on('connection', ((ws) => {
@@ -1275,7 +1283,7 @@ Server.sendClientMessage = function (message, ws) {
     console.error("ERR ERR ERR SENDING MESSAGE FAILURE:");
     console.error(err);
   }
-}
+};
 
 //Adds a new player's username to the system when starting a game + gives them a layout permutation set
 //Or takes the next permutation if they already exist
@@ -1292,7 +1300,7 @@ Server.processUsername = function (username, ws) {
     username = uuidv4();
   }
   //Another edge case (empty name string)
-  if (!username.length > 0) {
+  if (username.length <= 0) {
     console.error("bad3");
     username = uuidv4();
   }
@@ -1311,11 +1319,11 @@ Server.processUsername = function (username, ws) {
     ws.permutation = perm;
     Server.playerTopologies.push([username, perm]);
   }
-
-}
+};
 
 //Creates a new game when a player requests one
 Server.newGame = function (username, ws) {
+  var game, config;
   Server.processUsername(username, ws);
   ws.id = username; //allows for easier tracking in the database
   if (ws.id.length > 36) {
@@ -1347,13 +1355,13 @@ Server.newGame = function (username, ws) {
 
     //If expecting a P2 later, sets up config to be sent to P2 when they arrive
     if (!Server.AiMode) {
-      var config = Server.getConfig(true);
+      config = Server.getConfig(true);
       Server.WaitingGameConfig = config;
     }
     //Not expecting a human P2 so gets the config right away (true vs false parameter in getConfig)
     else {
       try {
-        var config = Server.getConfig(false, ws.permutation); //Don't need to retain the config for the next player if its vs the AI.
+        config = Server.getConfig(false, ws.permutation); //Don't need to retain the config for the next player if its vs the AI.
       } catch (e) {
         console.error("TRIGGERED FAILSAFE WITH GETTING CONFIG!");
         config = Server.getConfig(false);
@@ -1361,7 +1369,7 @@ Server.newGame = function (username, ws) {
       ws.permutation.push(ws.permutation.shift()); //Shifts the permutation list so the next layout will be picked next time
     }
 
-    var game = new GameState(config.network.peeps, config.network.connections, config.playerOneLayoutID, config.playerTwoLayoutID, config.laplacianID, ws);
+    game = new GameState(config.network.peeps, config.network.connections, config.playerOneLayoutID, config.playerTwoLayoutID, config.laplacianID, ws);
 
     //Adds game to the server's list
     Server.CurrentGames.push(game);
@@ -1385,7 +1393,7 @@ Server.newGame = function (username, ws) {
 
   //Matches a player when somebody is waiting
   else {
-    var config = Server.getConfig(false); //false means we don't use this same config next time
+    config = Server.getConfig(false); //false means we don't use this same config next time
     Server.WaitingGameConfig = null; //TODO: Nowhere are we actually using this value. Interesting we're not using it here. But the game works?
     config.network.peeps.forEach(function (peep) {
       //reverses the infected state for P2
@@ -1395,7 +1403,7 @@ Server.newGame = function (username, ws) {
     });
 
     //Similar code to above
-    var game = Server.CurrentGames[Server.CurrentGames.length - 1];
+    game = Server.CurrentGames[Server.CurrentGames.length - 1];
     game.addPlayerTwo(ws);
     game.playerTwoTimeOffset = Date.now() - game.gameStartTime;
     config.network = clone(config.playerTwoNetwork);
@@ -1405,15 +1413,15 @@ Server.newGame = function (username, ws) {
     Server.sendClientMessage(new Message(config, "CONFIG_TOKEN"), ws);
     Server.startTimer(game, 0, 61, false);
   }
-}
+};
 
 //When game ends, send win/lose/draw messages to all players
 Server.sendResults = function (playerNo, game, result) {
   try {
     if (playerNo == 1) {
-      Server.sendClientMessage(new Message([result, game.playerOneScoreList, game.playerTwoScoreList], "GAME_END_TOKEN"), game.playerOne);
+      Server.sendClientMessage(new Message([result, game.playerOneScoreList, game.playerTwoScoreList, game.gameID, playerNo], "GAME_END_TOKEN"), game.playerOne);
     } else if (playerNo == 2) {
-      Server.sendClientMessage(new Message([result, game.playerTwoScoreList, game.playerTwoScoreList], "GAME_END_TOKEN"), game.playerTwo);
+      Server.sendClientMessage(new Message([result, game.playerTwoScoreList, game.playerTwoScoreList, game.gameID, playerNo], "GAME_END_TOKEN"), game.playerTwo);
 
     } else {
       console.error("ERROR WHEN SENDING RESULTS!");
@@ -1422,7 +1430,7 @@ Server.sendResults = function (playerNo, game, result) {
     console.error("ERROR WHEN SENDING RESULTS2!");
     console.error(err);
   }
-}
+};
 
 //Starts timers for waiting for player 2 to join or either players' moves.
 Server.startTimer = function (game, status, duration, isPlayerOne) {
@@ -1448,7 +1456,7 @@ Server.startTimer = function (game, status, duration, isPlayerOne) {
     }, duration * 1000, !isPlayerOne);
     Server.sendClientMessage(new Message([0, duration - 1], "TIMER_TOKEN"), game.playerTwo);
   }
-}
+};
 
 //makes sure both players still in game
 Server.registerHeartbeat = function (ws) {
@@ -1460,7 +1468,7 @@ Server.registerHeartbeat = function (ws) {
   } else {
     game.playerTwoLastHeartbeat = Date.now();
   }
-}
+};
 
 //Stores players' clicks in the database
 Server.registerClick = function (payload, ws) {
@@ -1482,51 +1490,201 @@ Server.registerClick = function (payload, ws) {
   } catch (err) {
     console.error("Error handling clicks");
   } //NYCON why does this fail on AI? UPDATE: does this still fail?
+};
+
+Server.calculatePlayerScoreFromNodes = function (score, playerNodes, roundNo) {
+  // each node is worth 10 points
+  var additionalScore = playerNodes.length * 10;
+
+  //Applies 5x bonus to the final round
+  if (roundNo == 10) {
+    additionalScore = additionalScore * Server.LastRoundBonus;
+  }
+
+  // add to existing player score
+  score += additionalScore;
+  return score;
+};
+
+// get all the game id's where either player's id matches the given userid
+Server.getAllGamesPlayedByUser = async function (userID) {
+  var query = "SELECT * FROM master_games_table WHERE player_one_id = '" + userID + "' OR player_two_id = '" + userID + "'";
+  var result = await Server.sendSqlQuery(query);
+  return result.rows;
+};
+
+// gets all the rounds for a given game
+Server.getAllRoundsInfoForGame = async function (gameID) {
+  var query = "SELECT * FROM player_actions_table WHERE game_id = '" + gameID + "' ORDER BY round_number ASC";
+  var result = await Server.sendSqlQuery(query);
+  return result.rows;
+};
+
+// gets a single round specified by the round number for a given game
+Server.getRoundInfoForGame = async function (gameID, roundNo) {
+  var query = "SELECT * FROM player_actions_table WHERE game_id = '" + gameID + "' AND round_number = " + roundNo;
+  var result = await Server.sendSqlQuery(query);
+  return result.rows;
+};
+
+//Gets a completion code from the database and return to client
+Server.sendMTurkInfoToClient = async function (payload, ws) {
+  var username = payload.username;
+  var lastGameID = payload.last_game_id;
+  var mturkInfo = await Server.getMTurkInfoForClient(username, lastGameID, ws);
+  Server.sendClientMessage(new Message(mturkInfo, "MTURK_INFO"), ws);
+};
+
+Server.getMTurkInfoForClient = async function (username, lastGameID, ws) {
+  var info = {};
+  info.gamesPlayed = 0;
+  info.gamesWon = 0;
+  info.lastGameReward = 0;
+  info.totalReward = 0;
+  // get all the game id's for games this user was involved in
+  var games = await Server.getAllGamesPlayedByUser(username);
+  // for each game, get the round information
+  for (var i = 0; i < games.length; i++) {
+    // determine whether we are p1 or p2 based on our userID
+    var isPlayerOne = false;
+    if (games[i].player_one_id.trim() == username) {
+      isPlayerOne = true;
+    }
+    var gameID = games[i].game_id.trim();
+    // get rounds info of game
+    var rounds = await Server.getAllRoundsInfoForGame(gameID);
+    // should always have info for all 10 rounds
+    if (rounds.length == 10) {
+      var ourScore = 0;
+      var opponentScore = 0;
+      for (var r = 0; r < rounds.length; r++) {
+        var round = rounds[r];
+        // build node arrays
+        var ourNodes = [];
+        var opponentNodes = [];
+        var p1Nodes = [];
+        var p2Nodes = [];
+        // convert p1 node string into node array
+        if (round.p1_nodes.includes(",")) {
+          p1Nodes = round.p1_nodes.trim().split(",");
+        } else {
+          p1Nodes.push(round.p1_nodes);
+        }
+        // convert p2 node string into node array
+        if (round.p2_nodes.includes(",")) {
+          p2Nodes = round.p2_nodes.trim().split(",");
+        } else {
+          p2Nodes.push(round.p2_nodes);
+        }
+
+        // requesting player is player one
+        if (isPlayerOne) {
+          ourNodes = p1Nodes;
+          opponentNodes = p2Nodes;
+        }
+        // requesting player is player two
+        else {
+          opponentNodes = p1Nodes;
+          ourNodes = p2Nodes;
+        }
+
+        // calculate scores
+        ourScore = Server.calculatePlayerScoreFromNodes(ourScore, ourNodes, round.round_number);
+        opponentScore = Server.calculatePlayerScoreFromNodes(opponentScore, opponentNodes, round.round_number);
+      }
+      // calculate winner based on scores
+      var winner = false;
+      if (ourScore > opponentScore) {
+        winner = true;
+      }
+
+      // calculate monetary reward
+      var gameReward = Server.calculateMTurkRewardForGame(ourScore, winner);
+
+      // set info vars
+      info.gamesPlayed++;
+      if(winner) {
+        info.gamesWon++;
+      }
+      info.totalReward += gameReward;
+      // for the last game we save the reward separately so we can display it to the player
+      if(gameID == lastGameID) {
+        info.lastGameReward = gameReward;
+      }
+      //console.log("game_id: " + gameID + " ourScore: " + ourScore + " won: " + winner);
+    } else {
+      console.log("getMTurkInfoForClient [Error] Game: " + gameID + " does not have 10 rounds in the database");
+    }
+  }
+  return info;
+};
+
+// returns a monetary mturk reward value
+Server.calculateMTurkRewardForGame = function (score, win) {
+  var reward = 0;
+  var MTURK_WIN_REWARD = 0.05;
+  var MTURK_MIN_SCORE_REWARD = 0.03;
+  var MTURK_MAX_SCORE_REWARD = 0.20;
+
+  if(score <= 0) {
+    return 0;
+  }
+  
+  // scale the score to a monetary value
+  reward += convertRange(score, [1, 3500], [MTURK_MIN_SCORE_REWARD, MTURK_MAX_SCORE_REWARD]);
+
+  // winner bonus
+  if(win) {
+    reward += MTURK_WIN_REWARD;
+  }
+  return reward;
+};
+
+function convertRange( value, r1, r2 ) { 
+  return ( value - r1[ 0 ] ) * ( r2[ 1 ] - r2[ 0 ] ) / ( r1[ 1 ] - r1[ 0 ] ) + r2[ 0 ];
 }
 
 //Gets a completion code from the database and return to client
-Server.sendCompletionCodeToClient = async function(username, ws) {
-  var completion_code = await Server.getCompletionCodeForPlayer(username, ws);
-  if(completion_code) {
+Server.sendCompletionCodeToClient = async function (username, ws) {
+  var completion_code = await Server.getCompletionCodeForPlayer(username).trim();
+  if (completion_code) {
     Server.sendClientMessage(new Message(completion_code, "COMPLETION_CODE"), ws);
-  }
-  else {
+  } else {
     Server.sendClientMessage(new Message("", "COMPLETION_CODE_ERROR"), ws);
     console.log("Error getting completion code for player: " + username);
   }
-}
+};
 
 //Retrieves a player's completion code from the database by looking up their unique user id, if no match found, generates and saves new one
-Server.getCompletionCodeForPlayer = async function(username, ws) {
+Server.getCompletionCodeForPlayer = async function (username) {
   // query db to see if completion code already exists for player id
   var query = "SELECT * FROM mturk_completion_table WHERE player_id = '" + username + "'";
   var result = await Server.sendSqlQuery(query);
   // no completion code for user id found, create one
-  if(!result || result.rows.length <= 0) {
+  if (!result || result.rows.length <= 0) {
     console.log("No completion code for player: " + username + " found, generating new one");
     var completion_code = Server.generateCompletionCode();
     var timestamp = (new Date()).toISOString().slice(0, -1);
-    var query = `INSERT INTO mturk_completion_table VALUES ('${timestamp}', '${username}', '${completion_code}');`;
+    query = `INSERT INTO mturk_completion_table VALUES ('${timestamp}', '${username}', '${completion_code}');`;
     var result2 = await Server.sendSqlQuery(query);
     // insert failed
-    if(!result || result2.rowCount != 1) {
+    if (!result || result2.rowCount != 1) {
       return false;
     }
     // insert successful
     else {
       return completion_code;
     }
-  }
-  else {
+  } else {
     return result.rows[0].completion_code;
   }
-}
+};
 
-Server.generateCompletionCode = function() {
+Server.generateCompletionCode = function () {
   var id = "" + uuidv4();
   var shortenedId = id.slice(id.length - 12);
   return shortenedId;
-}
+};
 
 //Handles messages from the client
 //ws parameter allows us to return a message to the client
@@ -1552,6 +1710,7 @@ Server.ParseMessage = function (message, ws) {
     case "EMERGENCY_AI":
       Server.AiMode = true;
       Server.newGame(message.payload, ws);
+      break;
     case "CLICK_TOKEN":
       Server.registerClick(message.payload, ws);
       break;
@@ -1561,8 +1720,11 @@ Server.ParseMessage = function (message, ws) {
     case "NEW_COMPLETION_CODE":
       Server.sendCompletionCodeToClient(message.payload, ws);
       break;
+    case "GET_MTURK_INFO":
+      Server.sendMTurkInfoToClient(message.payload, ws);
+      break;
   }
-}
+};
 
 // for making changes to the database
 //var dbAdjust = require('./db_adjustments.js');

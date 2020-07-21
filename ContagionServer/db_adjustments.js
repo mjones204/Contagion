@@ -4,7 +4,7 @@ dbAdjust = async function() {
     console.log('Adjusting database');
     //await adjustMasterGamesTable();
     //await adjustPlayerActionsTable();
-}
+};
 
 adjustMasterGamesTable  = async function() {
     var query = "SELECT * FROM master_games_table";
@@ -19,7 +19,7 @@ adjustMasterGamesTable  = async function() {
         console.log(query);
         var updateResult = await Server.sendSqlQuery(query);
     }
-}
+};
 
 adjustPlayerActionsTable  = async function() {
     var query = "SELECT * FROM player_actions_table";
@@ -49,6 +49,6 @@ adjustPlayerActionsTable  = async function() {
         console.log(query);
         var updateResult = await Server.sendSqlQuery(query);
     }
-}
+};
 
 dbAdjust();

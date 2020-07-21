@@ -1,10 +1,10 @@
 NETWORK_CONFIGS = [];
 NETWORK_LAPLACIANS = [];
 
-NETWORK_CONFIGS.Xscale = 1 //1200; //Input topologies have x/y coordinates between 0 and 1. This scales it to a typical player's screen.
-NETWORK_CONFIGS.Yscale = 1 //700;
-NETWORK_CONFIGS.Xoffset = 0 //75;//-100;
-NETWORK_CONFIGS.Yoffset = 0 //150;//-25;
+NETWORK_CONFIGS.Xscale = 1; //1200; //Input topologies have x/y coordinates between 0 and 1. This scales it to a typical player's screen.
+NETWORK_CONFIGS.Yscale = 1; //700;
+NETWORK_CONFIGS.Xoffset = 0; //75;//-100;
+NETWORK_CONFIGS.Yoffset = 0; //150;//-25;
 const csv = require('csvtojson');
 Server = require('./server.js');
 const uuidv4 = require('uuid/v4');
@@ -20,14 +20,16 @@ processConfig = async (rawPeeps, rawConnections, uniqueLayoutName, list, topolog
 	}
 
 	var randomInfection = [];
+	var x, i;
+
 	if (Server.NeutralMode) {
 		//makes all nodes neutral to start
-		for (var x = 0; x < rawPeeps.length; x++) {
+		for (x = 0; x < rawPeeps.length; x++) {
 			randomInfection.push(-1);
 		}
 	} else {
 		//console.log("NOT NEUTRAL");
-		for (var x = 0; x < rawPeeps.length / 2; x++) {
+		for (x = 0; x < rawPeeps.length / 2; x++) {
 			randomInfection.push(0);
 			randomInfection.push(1);
 		}
@@ -38,12 +40,12 @@ processConfig = async (rawPeeps, rawConnections, uniqueLayoutName, list, topolog
 	var connectionData = [];
 
 	//Scales the x and y co-ordinates of the nodes to fit the container. This could possibly be implemented on client side.
-	for (var i = 0; i < rawPeeps.length; i++) {
+	for (i = 0; i < rawPeeps.length; i++) {
 		peepData.push([(rawPeeps[i][0] * NETWORK_CONFIGS.Xscale) + NETWORK_CONFIGS.Xoffset, (rawPeeps[i][1] * NETWORK_CONFIGS.Yscale) + NETWORK_CONFIGS.Yoffset, randomInfection[i]]);
 	}
 
 	//Isn't this just recreating the list? This was from a while ago so not too sure if needed.
-	for (var i = 0; i < rawConnections.length; i++) {
+	for (i = 0; i < rawConnections.length; i++) {
 		connectionData.push(rawConnections[i]);
 	}
 
@@ -53,13 +55,15 @@ processConfig = async (rawPeeps, rawConnections, uniqueLayoutName, list, topolog
 		"uniqueLayoutID": uniqueLayoutName,
 		"laplacianID": topologyIndex,
 	});
-}
+};
 
 async function loadConfigs() {
 	var csvPeepsDirectory = "";
 	var sliceAmount = -1;
 	var altDir = "";
 	var altSlice = 0;
+	var files = [];
+	var i;
 
 	if (!Server.LocalMode) {
 		csvPeepsDirectory = 'ContagionServer/Config_Files/';
@@ -79,17 +83,16 @@ async function loadConfigs() {
 	var topologies = [];
 	//from https://stackoverflow.com/questions/2727167/how-do-you-get-a-list-of-the-names-of-all-files-present-in-a-directory-in-node-j?rq=1
 	try {
-		var files = await readdir(csvPeepsDirectory);
-		for(var i = 0; i < files.length; i++) {
+		files = await readdir(csvPeepsDirectory);
+		for (i = 0; i < files.length; i++) {
 			topologies.push(csvPeepsDirectory + files[i] + "/");
 		}
-	}
-	catch(err) {
+	} catch (err) {
 		// there was an error reading from the original directory, attempt to read from the alternative
 		csvPeepsDirectory = altDir;
 		sliceAmount = altSlice;
-		var files = await readdir(csvPeepsDirectory);
-		for(var i = 0; i < files.length; i++) {
+		files = await readdir(csvPeepsDirectory);
+		for (i = 0; i < files.length; i++) {
 			topologies.push(csvPeepsDirectory + files[i] + "/");
 		}
 	}
@@ -97,7 +100,7 @@ async function loadConfigs() {
 	//FORMAT OF TOPOLOGIES:
 	//Each must be in Config_Files with a different folder for each different topology (multiple layouts can be in one folder)
 	//In this folder is n*2 folders, where n=number of layouts for this topology. Each topology has one positions_[index] and edges_[index] csv
-	for (var i = 0; i < topologies.length; i++) {
+	for (i = 0; i < topologies.length; i++) {
 		var numLayouts = -1; //there is one edges file, so number of layouts is #files - 1
 		fs.readdirSync(String(topologies[i])).forEach(file => { //String() is needed as the elements are stored as objects and need conversion for file traversal
 			numLayouts++;
