@@ -107,6 +107,7 @@ function Simulations() {
 			case "MTURK_INFO":
 				console.log("Your MTurk Info: ");
 				console.log(message.payload);
+				Simulations.updateGameOverModalInformation(message.payload);
 				break;
 			case "COMPLETION_CODE":
 				console.log("Your Completion Code: " + message.payload);
@@ -184,6 +185,32 @@ function Simulations() {
 			last_game_player_no: player_no,
 		};
 		Simulations.sendServerMessage(new Message(payload, "GET_MTURK_INFO"));
+	};
+
+	Simulations.updateGameOverModalInformation = function (info) {
+		// set string values based on mturkInfo
+		var headingText = 'Game Over!';
+		if(info.lastGameWon) {
+			headingText = 'Congratulations!';
+		}
+		var content = '';
+		content += '<h3>' + headingText + '</h3>';
+		content += '<h2> Game Reward: $' + formatMoney(info.lastGameReward) + '</h2>';
+		content += '<h2> Total Rewards: $' + formatMoney(info.totalReward) + '</h2>';
+		content += '<div>';
+		content += '<div>';
+		content += 'You have won ' + info.gamesWon + ' of ' + info.gamesPlayed + ' games.';
+		content += '<div>';
+		content += 'There are bonus rewards for winning a game and for achieving a high score.';
+		content += '<div>';
+		content += 'Try to beat your opponent!';
+		content += '<div>';
+		content += 'You must play at least 10 games before you can cash out.';
+		content += '<div>';
+		
+		// add content to modal container
+		var container = document.getElementById('endgame_content');
+		container.innerHTML = content;
 	};
 
 	Simulations.formatConfig = function (config) {

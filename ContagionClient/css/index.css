@@ -274,9 +274,18 @@ a:hover{
 #modal h3{
 	font-size: 1.3em;
     margin-bottom: 0.7em;
-    padding-top: 0.7em;
-    margin-top: 1em;
-    border-top: 5px solid #282828;
+    padding-top: 0.3em;
+    margin-top: 0.5em;
+	border-top: 5px solid #282828;
+	border-top: none;
+}
+#modal h2{
+	font-size: 1.3em;
+    margin-bottom: 0.2em;
+    padding-top: 0.2em;
+    margin-top: 0.4em;
+	border-top: 5px solid #282828;
+	border-top: none;
 }
 #modal[size=small]{
 	width: 700px;

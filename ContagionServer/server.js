@@ -1540,6 +1540,7 @@ Server.getMTurkInfoForClient = async function (username, lastGameID, ws) {
   info.gamesPlayed = 0;
   info.gamesWon = 0;
   info.lastGameReward = 0;
+  info.lastGameWon = false;
   info.totalReward = 0;
   // get all the game id's for games this user was involved in
   var games = await Server.getAllGamesPlayedByUser(username);
@@ -1610,6 +1611,9 @@ Server.getMTurkInfoForClient = async function (username, lastGameID, ws) {
       // for the last game we save the reward separately so we can display it to the player
       if(gameID == lastGameID) {
         info.lastGameReward = gameReward;
+        if(winner) {
+          info.lastGameWon = true;
+        }
       }
       //console.log("game_id: " + gameID + " ourScore: " + ourScore + " won: " + winner);
     } else {
@@ -1629,7 +1633,7 @@ Server.calculateMTurkRewardForGame = function (score, win) {
   if(score <= 0) {
     return 0;
   }
-  
+
   // scale the score to a monetary value
   reward += convertRange(score, [1, 3500], [MTURK_MIN_SCORE_REWARD, MTURK_MAX_SCORE_REWARD]);
 
