@@ -111,6 +111,7 @@ function Simulations() {
 				break;
 			case "COMPLETION_CODE":
 				console.log("Your Completion Code: " + message.payload);
+				Simulations.showCashOutModal(message.payload);
 				break;
 			case "COMPLETION_CODE_ERROR":
 				console.log("Error getting completion code");
@@ -185,6 +186,14 @@ function Simulations() {
 			last_game_player_no: player_no,
 		};
 		Simulations.sendServerMessage(new Message(payload, "GET_MTURK_INFO"));
+	};
+
+	Simulations.showCashOutModal = function (completionCode) {
+		// add content to modal container
+		//var container = document.getElementById('completion_code');
+		//container.innerHTML = completionCode;
+		//setTimeout(Modal.showAll, 100, "cashout");
+		window.prompt("Your completion code is shown below. Enter this code in the MTurk HIT form so that we can confirm your work and pay your reward.", completionCode);
 	};
 
 	Simulations.updateGameOverModalInformation = function (info) {
