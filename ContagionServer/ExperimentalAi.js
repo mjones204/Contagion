@@ -16,7 +16,7 @@ var winsServer = 0;
 var winsExperiment = 0;
 var resultsList = [];
 
-EXPERIMENT_MODE = "ChiTest"; //"NoReflexive";//"DegreesTest"//"DegreesTest";//"ChiTest"
+EXPERIMENT_MODE = "ChiTest"; //"NoReflexive";//"DegreesTest"//"DegreesTest";//"ChiTest";
 //DegreesTest sees how different exponent strengths affect High/Low degree strategies
 //ChiTest performs chisquared testing, only does strategies against themselves
 //NoReflexive puts all strategies against each other, but doesn't pit strategies against themselves
@@ -141,7 +141,6 @@ function gameStart() {
         console.log("F " + ExponentStrength);
         newExperiment();
     }
-
 }
 
 function calculateAveragePercantageInfected(cumScore) {

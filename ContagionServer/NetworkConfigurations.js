@@ -124,7 +124,6 @@ async function loadConfigs() {
 			var uniqueLayoutName = topologies[i].slice(sliceAmount, -1) + "_" + j;
 
 			var rawPeeps = null;
-			////console.log(positionsPath);
 			await csv({
 				noheader: true,
 				output: "csv"
@@ -132,14 +131,24 @@ async function loadConfigs() {
 				rawPeeps = jsonObj;
 			});
 
-
 			processConfig(rawPeeps, connections, uniqueLayoutName, topologyLayoutsList, i); //slice removes the Config_Files part to give the name of the folder
 		}
-		shuffle(topologyLayoutsList); //random order of layouts
+		// if testmode is active, dont shuffle order
+		if(Server.TestMode) {
+			
+		}
+		else {
+			shuffle(topologyLayoutsList); //random order of layouts
+		}
 		NETWORK_CONFIGS.push(topologyLayoutsList); //Changes the original usage! Now contains LISTS of configs
 	}
-
-	shuffle(NETWORK_CONFIGS); //random order of topologies
+	// if testmode is active, dont shuffle order (keeps indexes consistant with manually set topology/layout ids) (see Server.getConfig())
+	if(Server.TestMode) {
+		
+	}
+	else {
+		shuffle(NETWORK_CONFIGS); //random order of topologies
+	}
 	Server.initialiseTopologyLayoutIndexes(); // initialises Server.CurrentTopologyLayoutIndexes and Server.CurrentTopologyIndices
 	////console.log(NETWORK_CONFIGS);
 	console.log("Topologies Loaded");

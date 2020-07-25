@@ -1,9 +1,10 @@
 //NOTE: A lot of the human vs human player code is no longer bug-free due to changes in specification. It will work with some moderate changes but NOT as-is.
 
-Server.LocalMode = false; //Run on local machine or internet-facing
+Server.LocalMode = true; //Run on local machine or internet-facing
 Server.NeutralMode = true; //Supports neutral nodes (this is the default now)
 Server.TrialMode = false; //Running controlled trials with people
 Server.ExperimentMode = false; //For things like monte carlo...
+Server.TestMode = false; //For testing AI performance
 Server.EnableAWS = false; //Connects to AWS
 Server.NumberOfNodes = 20; //Changing this may require some refactoring...
 Server.RemoveOldNodes = false; //TODO: Update game logic (DB side done)
@@ -119,29 +120,6 @@ if (!Server.LocalMode) {
 
 var clone = require('clone'); //Allows deep cloning of objects (for parallel games with shared starting resources)
 
-//Handles waiting until the server has finished loading
-Server.LoadExperiment = function (times) {
-  if (times > 100) {
-    console.error("Error Initialising!");
-    return;
-  }
-  //When this has a non-zero value, topologies have been loaded
-  if (configData.laplacians.length != 0) {
-    var experimentAi = require('./ExperimentalAi.js');
-    setTimeout(() => {
-      experimentAi.setupExperiment(this);
-    }, 1500); //Debugger needs time to attach
-  } else {
-    setTimeout(() => {
-      Server.LoadExperiment(times + 1);
-    }, 250);
-  }
-};
-
-if (Server.ExperimentMode) {
-  Server.LoadExperiment(0);
-}
-
 //Handles storing of data to database
 Server.sendSqlQuery = async function (query) {
   if (!Server.LocalMode && !Server.ExperimentMode) { //Doesn't use the database if we're running locally/experiments
@@ -233,11 +211,23 @@ Server.sendMail = function (emailSubject, errtext) {
 Server.initialiseTopologyLayoutIndexes = function () {
   var topologyLayoutIndexes = [];
   for (var i = 0; i < serverConfigs.length; i++) { //If 2 topologies, will be length 2 (layouts do not count)
-    topologyLayoutIndexes.push(0);
+    topologyLayoutIndexes.push(i);
   }
 
   Server.CurrentTopologyLayoutIndexes = topologyLayoutIndexes;
   Server.CurrentTopologyIndex = 0; //Similarly to how the list tracks layouts, this variable tracks the next topology to be used
+};
+
+Server.setAiStrategy = function(strategy) {
+  Server.AiStrategy = strategy;
+};
+
+Server.setTestTopologyID = function(topologyID) {
+  Server.TestTopologyID = topologyID;
+};
+
+Server.setTestLayoutID = function(layoutID) {
+  Server.TestLayoutID = layoutID;
 };
 
 module.exports = {
@@ -246,9 +236,13 @@ module.exports = {
     Server.initialiseTopologyLayoutIndexes();
   },
   //Allows other files to send queries to database
+  setAiStrategy: Server.setAiStrategy,
+  setTestTopologyID: Server.setTestTopologyID,
+  setTestLayoutID: Server.setTestLayoutID,
   sendSqlQuery: Server.sendSqlQuery,
   NeutralMode: Server.NeutralMode, //Allows other files to access these variables
   LocalMode: Server.LocalMode,
+  TestMode: Server.TestMode,
   NumberOfNodes: Server.NumberOfNodes
 
 };
@@ -260,6 +254,54 @@ module.exports.LocalMode = Server.LocalMode;
 configData = require('./NetworkConfigurations.js');
 serverConfigs = configData.configs;
 laplaciansList = configData.laplacians;
+
+//For experiment mode
+//Handles waiting until the server has finished loading
+Server.LoadExperiment = function (times) {
+  if (times > 100) {
+    console.error("Error Initialising!");
+    return;
+  }
+  //When this has a non-zero value, topologies have been loaded
+  if (configData.laplacians.length != 0) {
+    var experimentAi = require('./ExperimentalAi.js');
+    setTimeout(() => {
+      experimentAi.setupExperiment(this);
+    }, 1500); //Debugger needs time to attach
+  } else {
+    setTimeout(() => {
+      Server.LoadExperiment(times + 1);
+    }, 250);
+  }
+};
+
+if (Server.ExperimentMode) {
+  Server.LoadExperiment(0);
+}
+
+//For Test mode
+//Handles waiting until the server has finished loading
+Server.LoadTestSuite = function (times) {
+  if (times > 100) {
+    console.error("Error Initialising!");
+    return;
+  }
+  //When this has a non-zero value, topologies have been loaded
+  if (configData.laplacians.length != 0) {
+    var testSuite = require('./TestSuite.js');
+    setTimeout(() => {
+      testSuite.setupTest(this);
+    }, 1500); //Debugger needs time to attach
+  } else {
+    setTimeout(() => {
+      Server.LoadTestSuite(times + 1);
+    }, 250);
+  }
+};
+
+if (Server.TestMode) {
+  Server.LoadTestSuite(0);
+}
 
 //Initialises most server-wide variables (some frequenly changing ones are declared at the top of the file)
 function Server() {
@@ -276,6 +318,9 @@ function Server() {
   Server.demoMode = true; //Prevents timeouts if players take too long
   Server.heartbeatCheckFrequency = 100; //Checks heartbeats from players every X milliseconds
   Server.heartAttackTime = 800; //If no response in X milliseconds, kills game (other player wins)
+  // For testing
+  Server.TestTopologyID = null;
+  Server.TestLayoutID = null;
 }
 
 Server();
@@ -1239,11 +1284,27 @@ Server.getConfig = function (twoPlayerMode, perm) {
     topologyID = Math.floor(mixedTopologyID / serverConfigs.length);
     layoutID = mixedTopologyID % serverConfigs.length;
     p2LayoutID = layoutID; //TODO: make this work outside the trial
+
+    // for manual setting of topology and layout when testing
+    if(Server.TestMode) {
+      if(Server.TestTopologyID != null) {
+        // if the topologyID was set manually (e.g. to 2) this wont match the config index (serverConfigs[2][0] when we we really want serverConfigs[1][0])
+        // we need to manually find and match the correct config index to the topology id
+        // currently this can be achieved by subtracting 1 (i.e. topology 1 is in the 0th index of the config array)
+        // but if we add more toplogies or change numbers this logic will need to be rectified
+        topologyID = Server.TestTopologyID - 1;
+      }
+      if(Server.TestLayoutID != null) {
+        layoutID = Server.TestLayoutID;
+        p2LayoutID = Server.TestLayoutID;
+      }
+    }
   }
   if (twoPlayerMode) {
     //For a 2 player game, we want them to use the same topology but different layout. If there's no player two, the assignment on the previous line won't have any effect.
     Server.CurrentTopologyLayoutIndexes[topologyID] = (Server.CurrentTopologyLayoutIndexes[topologyID] + 1) % serverConfigs[topologyID].length;
   }
+
   var config = {
     type: "sim",
     //The sim object covers the whole screen, so we start at [0,0]
@@ -1510,21 +1571,36 @@ Server.calculatePlayerScoreFromNodes = function (score, playerNodes, roundNo) {
 Server.getAllGamesPlayedByUser = async function (userID) {
   var query = "SELECT * FROM master_games_table WHERE player_one_id = '" + userID + "' OR player_two_id = '" + userID + "'";
   var result = await Server.sendSqlQuery(query);
-  return result.rows;
+  if(result) {
+    return result.rows;
+  }
+  else {
+    return [];
+  }
 };
 
 // gets all the rounds for a given game
 Server.getAllRoundsInfoForGame = async function (gameID) {
   var query = "SELECT * FROM player_actions_table WHERE game_id = '" + gameID + "' ORDER BY round_number ASC";
   var result = await Server.sendSqlQuery(query);
-  return result.rows;
+  if(result) {
+    return result.rows;
+  }
+  else {
+    return [];
+  }
 };
 
 // gets a single round specified by the round number for a given game
 Server.getRoundInfoForGame = async function (gameID, roundNo) {
   var query = "SELECT * FROM player_actions_table WHERE game_id = '" + gameID + "' AND round_number = " + roundNo;
   var result = await Server.sendSqlQuery(query);
-  return result.rows;
+  if(result) {
+    return result.rows;
+  }
+  else {
+    return [];
+  }
 };
 
 //Gets a completion code from the database and return to client
@@ -1650,7 +1726,7 @@ function convertRange( value, r1, r2 ) {
 
 //Gets a completion code from the database and return to client
 Server.sendCompletionCodeToClient = async function (username, ws) {
-  var completion_code = await Server.getCompletionCodeForPlayer(username).trim();
+  var completion_code = await Server.getCompletionCodeForPlayer(username);
   if (completion_code) {
     Server.sendClientMessage(new Message(completion_code, "COMPLETION_CODE"), ws);
   } else {
@@ -1680,7 +1756,7 @@ Server.getCompletionCodeForPlayer = async function (username) {
       return completion_code;
     }
   } else {
-    return result.rows[0].completion_code;
+    return result.rows[0].completion_code.trim();
   }
 };
 
