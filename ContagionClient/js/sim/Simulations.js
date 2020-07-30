@@ -52,7 +52,9 @@ function Simulations() {
 	self.dom = $("#simulations");
 
 	self.sims = [];
+	Simulations.TestMode = false;
 	Simulations.inProgress = false;
+	Simulations.gameInProgress = false;
 	Simulations.PERCENTAGE_INFECTED = 0;
 	//TODO In Slideshow.js, do a wait for serverResponse to have value, then set serverResponse to null again.
 	Simulations.awaitingResponse = false;
@@ -116,6 +118,19 @@ function Simulations() {
 			case "COMPLETION_CODE_ERROR":
 				console.log("Error getting completion code");
 				break;
+			case "TEST_MODE_STATUS":
+				var testModeInfo = message.payload;
+				Simulations.TestMode = testModeInfo.TestMode;
+				if(Simulations.TestMode) {
+					console.log("TEST MODE ENABLED");
+					testingToolsInit(testModeInfo); // TestingTools.js
+				}
+				break;
+			case "TEST_PLAYER_NEXT_MOVE":
+				var moveInfo = message.payload;
+				console.log(moveInfo);
+				testPlayerNextMoveInfoReceived(moveInfo);
+				break;
 		}
 	};
 
@@ -124,6 +139,7 @@ function Simulations() {
 		self.ws.onopen = function (event) {
 			self.ws.send("Connection Recieved.");
 			setInterval(Simulations.heartbeat, 250);
+			setTimeout(Simulations.requestServerInTestMode, 700, ""); // loads client testing tools if Server.TestMode is true
 		};
 		self.ws.onerror = function (err) {
 			console.log('err: ', err);
@@ -152,7 +168,7 @@ function Simulations() {
 			Simulations.popupDialogue("Error connecting to server. Please refresh!");
 		} else {
 			//Simulations.popupDialogue(""); //clears any existing text
-			console.log(msg);
+			//console.log(msg);
 			self.ws.send(JSON.stringify(msg));
 		}
 	};
@@ -170,6 +186,28 @@ function Simulations() {
 				Simulations.sendServerMessage(new Message(Simulations.Username, "NEW_GAME_TOKEN"));
 			}
 			Simulations.awaitingResponse = true;
+		}
+	};
+
+	//Test Mode - Request to see whether server is in test mode
+	Simulations.requestServerInTestMode = function () {
+		console.log("Requesting server Test Mode status");
+		Simulations.sendServerMessageOverride(new Message(Simulations.Username, "GET_TEST_MODE_STATUS"));
+	};
+
+	// Test Mode - Request
+	Simulations.requestPlayerNextMove = function (playerNumber, strategy) {
+		// only fire a request if we're in game
+		if(Simulations.gameInProgress) {
+			console.log("Requesting P" + playerNumber + " Next Move with Strategy: " + strategy);
+			var info = {};
+			info.username = Simulations.Username;
+			info.playerNumber = playerNumber;
+			info.strategy = strategy;
+			Simulations.sendServerMessageOverride(new Message(info, "GET_TEST_PLAYER_NEXT_MOVE"));
+		}
+		else {
+			console.log("requestPlayerNextMove() - Blocked - !Simulations.gameInProgress");
 		}
 	};
 
@@ -265,6 +303,7 @@ function Simulations() {
 	};
 
 	Simulations.gameOver = function (payload) {
+		Simulations.gameInProgress = false;
 		console.log(payload); // [result, myscores, theirscores, game_id, playerNo]
 		// request mturk info which is displayed in the modal
 		var game_id = payload[3];
@@ -374,6 +413,8 @@ function Simulations() {
 		var sim = new Sim(config);
 		self.dom.appendChild(sim.canvas);
 		self.sims.push(sim);
+
+		Simulations.startedGame();
 	};
 
 	self.beginRound = function () {
@@ -389,6 +430,19 @@ function Simulations() {
 			Simulations.sendServerMessage(new Message(movesToSubmit, "SUBMIT_MOVES_TOKEN"));
 			Simulations.waitForServerMoves(sim);
 		});
+	};
+
+	Simulations.startedGame = function() {
+		Simulations.gameInProgress = true;
+		Simulations.startedNewRound();
+	};
+
+	Simulations.startedNewRound = function() {
+		// in test mode on new round we request the next potential move for both players (based on selected test strategies - so we can populate test UI) 
+		if(Simulations.TestMode && SimUI.RoundNumber < 10) {
+			testModalRequestNextMove(1, testP1SelectedStrategy);
+			testModalRequestNextMove(2, testP2SelectedStrategy);
+		}
 	};
 
 	Simulations.waitForServerMoves = function (sim) {
@@ -444,6 +498,7 @@ function Simulations() {
 			sim.calculatePercentage();
 		});
 		Simulations.awaitingResponse = false;
+		Simulations.startedNewRound();
 	};
 
 	Simulations.validateMoves = function (orbits, id) {

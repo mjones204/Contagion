@@ -47,7 +47,7 @@ function ConnectorCutter(config){
 			if(!Simulations.IS_RUNNING){
 
 				// JUST CLICKED, and state=0... can either start connecting or cutting!
-				if(mouse.justPressed && self.state===0){
+				if(mouse.justPressed && self.state===0 && !userMouseIsOverTestModal()){
 
 					// Clicked on a peep?
 					var peepClicked = self.sim.getHoveredPeep(20);

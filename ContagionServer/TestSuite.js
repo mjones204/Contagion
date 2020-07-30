@@ -28,14 +28,14 @@ function setupTest(context) { //COULD do this without websockets. Not sure of th
     };
 
     console.log("[TEST] Test Suite Started");
-    newTest("Random", "Mirror", 2, 1);
+    //newTest("Random", "Mirror", 2, 1);
 }
 
 function newTest(p1Strat, p2Strat, topologyID = null, layoutID = null) {
     // set strategies
     p1Strategy = p1Strat;
     p2Strategy = p2Strat;
-    Server.setAiStrategy(p2Strategy);
+    Server.setTestP2Strategy(p2Strategy);
 
     // set topology and layout manually
     // (when null the server will just use random ones as usual)

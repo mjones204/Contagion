@@ -4,7 +4,7 @@ Server.LocalMode = true; //Run on local machine or internet-facing
 Server.NeutralMode = true; //Supports neutral nodes (this is the default now)
 Server.TrialMode = false; //Running controlled trials with people
 Server.ExperimentMode = false; //For things like monte carlo...
-Server.TestMode = false; //For testing AI performance
+Server.TestMode = true; //For testing AI performance
 Server.EnableAWS = false; //Connects to AWS
 Server.NumberOfNodes = 20; //Changing this may require some refactoring...
 Server.RemoveOldNodes = false; //TODO: Update game logic (DB side done)
@@ -218,8 +218,12 @@ Server.initialiseTopologyLayoutIndexes = function () {
   Server.CurrentTopologyIndex = 0; //Similarly to how the list tracks layouts, this variable tracks the next topology to be used
 };
 
-Server.setAiStrategy = function(strategy) {
-  Server.AiStrategy = strategy;
+Server.setTestP1Strategy = function(strategy) {
+  Server.TestP1Strategy = strategy;
+};
+
+Server.setTestP2Strategy = function(strategy) {
+  Server.TestP2Strategy = strategy;
 };
 
 Server.setTestTopologyID = function(topologyID) {
@@ -236,9 +240,10 @@ module.exports = {
     Server.initialiseTopologyLayoutIndexes();
   },
   //Allows other files to send queries to database
-  setAiStrategy: Server.setAiStrategy,
   setTestTopologyID: Server.setTestTopologyID,
   setTestLayoutID: Server.setTestLayoutID,
+  setTestP1Strategy: Server.setTestP1Strategy,
+  setTestP2Strategy: Server.setTestP2Strategy,
   sendSqlQuery: Server.sendSqlQuery,
   NeutralMode: Server.NeutralMode, //Allows other files to access these variables
   LocalMode: Server.LocalMode,
@@ -318,9 +323,13 @@ function Server() {
   Server.demoMode = true; //Prevents timeouts if players take too long
   Server.heartbeatCheckFrequency = 100; //Checks heartbeats from players every X milliseconds
   Server.heartAttackTime = 800; //If no response in X milliseconds, kills game (other player wins)
+  Server.strategyList = ["Random", "Mirror", "DSLow", "DSHigh", "Equilibrium", "SimpleGreedy", "GreedyPredictsHigh", "GreedyPredictsGreedy"];
   // For testing
-  Server.TestTopologyID = null;
-  Server.TestLayoutID = null;
+  Server.TestTopologyID = 2;
+  Server.TestLayoutID = 0;
+  Server.TestP1Strategy = "Random";
+  Server.TestP2Strategy = "Mirror";
+  Server.TestMove = false; // true when a move is requested to be calculated but not submitted (i.e. to see what move a strategy would pick next round)
 }
 
 Server();
@@ -451,6 +460,9 @@ GameState.prototype.addMovesToDatabase = function () {
 GameState.prototype.addPlayerMoves = function (moves, isPlayerOne, opponentReady) {
   //Performs AI moves before recording new player moves (to prevent bias)
   this.aiCheck();
+  if(Server.TestMode) {
+
+  }
   //Sets either the server's recording of p1 moves or p2 moves depending o who sent it
   if (isPlayerOne) {
     this.playerOneMoves = moves;
@@ -541,7 +553,12 @@ GameState.prototype.aiCheck = function () {
       this.killGame(false, this);
     } else {
       var aiPlayer = this.playerTwoMoves; //WARN: Assumes P2 always AI.
-      this.aiTurn(aiPlayer, 0, Server.AiStrategy);
+      var strategy = Server.AiStrategy;
+      // in test mode the server uses the strategies as defined by TestPStrategy vars
+      if(Server.TestMode) {
+        strategy = Server.TestP2Strategy;
+      }
+      this.aiTurn(aiPlayer, 0, strategy);
     }
   }
   //no AI players, so do nothing
@@ -817,6 +834,17 @@ GameState.prototype.performInfections = function () {
 
 //Handles logic regarding ai strategies
 GameState.prototype.aiTurn = function (aiMoves, friendlyNodeStatus, strategy) {
+  var prevAiMoves = [];
+  var playerOneMoves = [];
+  var playerTwoMoves = [];
+  // if it's not an actual move to be recorded we save a state of the AI moves
+  if(Server.TestMove) {
+    prevAiMoves = [...this.prevAiMoves];
+    playerOneMoves = [...this.playerOneMoves];
+    playerTwoMoves = [...this.playerTwoMoves];
+  }
+
+  //console.log("aiTurn: friendlyNodeStatus: " + friendlyNodeStatus + " strategy: " + strategy);
   aiMoves = []; //Will contain the chosen moves
   //for a previous version where there would be 5 tokens to start, then 1 token moved each time.
   var oneNodeOnly = (this.prevAiMoves.length == 0) ? false : true;
@@ -865,10 +893,21 @@ GameState.prototype.aiTurn = function (aiMoves, friendlyNodeStatus, strategy) {
       console.err("ERROR! INVALID STRATEGY!");
       break;
   }
-  if (this.isServerPlayer(friendlyNodeStatus)) {
-    this.playerTwoMoves = aiMoves; //Allows server to add moves for either player
-  } else {
-    return aiMoves[0];
+  // the move isn't to be recorded so we restore the game state
+  if(Server.TestMove) {
+    var move = aiMoves[aiMoves.length - 1];
+    aiMoves = [];
+    this.prevAiMoves = [...prevAiMoves];
+    this.playerOneMoves = [...playerOneMoves];
+    this.playerTwoMoves = [...playerTwoMoves];
+    return move;
+  }
+  else {
+    if (this.isServerPlayer(friendlyNodeStatus)) {
+      this.playerTwoMoves = aiMoves; //Allows server to add moves for either player
+    } else {
+      return aiMoves[0];
+    }
   }
 };
 
@@ -1063,19 +1102,19 @@ GameState.prototype.aiTurnDegreeSensitive = function (aiMoves, oneNodeOnly, lowD
 
     //Represents existing tokens as extra/fewer degrees on the node depending on the effect you want extra tokens to have.
     //NOTE: We decided that this makes analysing games too difficult, so you can ignore this block.
-    if (Server.ExistingTokensBias != 0) {
-      if (this.isServerPlayer(friendlyNodeStatus)) {
-        for (i = 0; i < this.prevAiMoves.length; i++) { //Is agnostic of opponent's moves
-          token = this.prevAiMoves[i];
-          laplacian[token][token] += Server.ExistingTokensBias;
-        }
-      } else { //This is the above but for when the experimental opposition AI is playing.
-        for (i = 0; i < this.length; i++) {
-          token = this.playerOneMoves[i];
-          laplacian[token][token] += Server.ExistingTokensBias;
-        }
-      }
-    }
+    // if (Server.ExistingTokensBias != 0) {
+    //   if (this.isServerPlayer(friendlyNodeStatus)) {
+    //     for (i = 0; i < this.prevAiMoves.length; i++) { //Is agnostic of opponent's moves
+    //       token = this.prevAiMoves[i];
+    //       laplacian[token][token] += Server.ExistingTokensBias;
+    //     }
+    //   } else { //This is the above but for when the experimental opposition AI is playing.
+    //     for (i = 0; i < this.length; i++) {
+    //       token = this.playerOneMoves[i];
+    //       laplacian[token][token] += Server.ExistingTokensBias;
+    //     }
+    //   }
+    // }
     for (i = 0; i < Server.NumberOfNodes; i++) {
       var nodeDegree = laplacian[i][i]; //Gets the node degree from the laplacian diagonal
 
@@ -1766,6 +1805,62 @@ Server.generateCompletionCode = function () {
   return shortenedId;
 };
 
+Server.sendTestModeInfoToClient = function (ws) {
+  var info = {};
+  info.TestMode = Server.TestMode;
+  // server is in test mode so gather info to pass to the client
+  if(Server.TestMode) {
+    info.configs = serverConfigs;
+    info.topologyID = Server.TestTopologyID;
+    info.layoutID = Server.TestLayoutID;
+    info.p1Strategy = Server.TestP1Strategy;
+    info.p2Strategy = Server.TestP2Strategy;
+    info.strategyList = Server.strategyList;
+  }
+  Server.sendClientMessage(new Message(info, "TEST_MODE_STATUS"), ws);
+};
+
+Server.getNextMoveForPlayerFromStrategy = async function (game, playerNumber, strategy) {
+  var moves = [];
+  var friendlyNodeStatus;
+  // is player one
+  if(playerNumber == 1) {
+    friendlyNodeStatus = 1;
+    Server.setTestP1Strategy(strategy);
+  }
+  else {
+    friendlyNodeStatus = 0;
+    Server.setTestP2Strategy(strategy);
+  }
+  if(strategy == "Manual") {
+    return "n/a";
+  }
+  else if(strategy == "Random") {
+    return "random";
+  }
+  else if((strategy == "Mirror" || strategy == "Equilibrium") && game.roundNumber == 0) {
+    return "random";
+  }
+
+  Server.TestMove = true; // since we don't actually want the server to record the move
+  var move = game.aiTurn(moves, friendlyNodeStatus, strategy);
+  Server.TestMove = false;
+  return move;
+};
+
+Server.sendTestPlayerNextMoveInfoToClient = async function (payload, ws) {
+  var info = {};
+  game = Server.validateGame(ws);
+  if (game == null) {
+    Server.sendClientMessage(new Message(info, "TEST_PLAYER_NEXT_MOVE"), ws);
+    return;
+  }
+  info.playerNumber = payload.playerNumber;
+  info.strategy = payload.strategy;
+  info.nextMove = await Server.getNextMoveForPlayerFromStrategy(game, payload.playerNumber, payload.strategy);
+  Server.sendClientMessage(new Message(info, "TEST_PLAYER_NEXT_MOVE"), ws);
+};
+
 //Handles messages from the client
 //ws parameter allows us to return a message to the client
 Server.ParseMessage = function (message, ws) {
@@ -1802,6 +1897,12 @@ Server.ParseMessage = function (message, ws) {
       break;
     case "GET_MTURK_INFO":
       Server.sendMTurkInfoToClient(message.payload, ws);
+      break;
+    case "GET_TEST_MODE_STATUS":
+      Server.sendTestModeInfoToClient(ws);
+      break;
+    case "GET_TEST_PLAYER_NEXT_MOVE":
+      Server.sendTestPlayerNextMoveInfoToClient(message.payload, ws);
       break;
   }
 };

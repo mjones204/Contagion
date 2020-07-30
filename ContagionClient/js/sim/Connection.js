@@ -13,7 +13,7 @@ function Connection(config){
 		img: "line",
 		frames:1, sw:300, sh:20,
 	});
-	console.log(self.sprite.config.sw);
+	//console.log(self.sprite.config.sw);
 	self.sprite.pivotX = 2.8;
 	self.sprite.pivotY = 10;
 

@@ -194,6 +194,110 @@ a:hover{
 	top:3px;
 }
 
+/* Testing */
+#test_button{
+	position: absolute;
+	color: #fff;
+	text-align: center;
+	border-radius: 10px;
+
+	width: 200px;
+	padding: 0.5em 0;
+	background-image: url(../sprites/red_button.png);
+	background-size: 100% auto;
+
+	position: absolute;
+	right:10px;
+	top:10px;
+	transition: top 0.1s ease-in-out;
+	z-index:1; /* on top of the sim canvas */
+}
+#test_button:hover {
+	top:-1px;
+	cursor: default; 
+}
+
+#test_button:active {
+	top:3px;
+}
+#test_button[active] {
+	background-position: 0 -62.5px;
+}
+
+#test_tools_modal {
+	position: absolute;
+	text-align: center;
+	right:10px;
+	top:80px;
+	width: 310px;
+	height: 450px;
+	background-color: #ccc;
+	opacity: 0.5;
+	z-index:1; /* on top of the sim canvas */
+	border: 2px solid rgb(99, 99, 99);
+
+	/* make text non-selectable */
+	-webkit-user-select: none; /* Safari */        
+	-moz-user-select: none; /* Firefox */
+	-ms-user-select: none; /* IE10+/Edge */
+	user-select: none; /* Standard */
+}
+#test_tools_modal:hover {
+	opacity: 0.9;
+	cursor: default; 
+}
+
+.tm_options_container {
+	display: inline-block;
+	width: 98%;
+	height: auto;
+	/* background-color: rgb(185, 185, 185); */
+	margin: 1px;
+	font-size: 16px;
+}
+
+.tm_strategies_container {
+	display: grid;
+	grid-template-columns: auto auto;
+	/* background-color: #2e75af; */
+	padding: 4px;
+	margin: 0;
+}
+
+.tm_strategies_item {
+	padding: 0;
+	/* background-color: rgba(255, 255, 255, 0.8); */
+	text-align: left;
+	display: block;
+}
+
+.tm_strategies_item br {
+	display: block; 
+    margin-bottom: 0em; 
+}
+
+.tm_strategies_rb {
+	padding: 0;
+	margin: 0;
+	display: block;
+	height: 24px;
+	white-space: nowrap;
+  	overflow: hidden;
+  	text-overflow: ellipsis;
+}
+
+.tm_strategies_header {
+	padding: 0;
+	margin: 0;
+	display: block;
+	height: 26px;
+}
+
+.tm_next_move {
+	font-size: 20px;
+	color: rgb(220 115 53);
+}
+
 /* Sandbox UI */
 .sandbox_ui{
 	width: 270px;
@@ -427,6 +531,14 @@ a:hover{
 		display: block;
 		line-height: 28px;
 		display: none;
+		letter-spacing: 2px;
+}
+#test_tools_btn{
+	position: absolute;
+	left: 260px;
+	padding: 5px 0;
+		line-height: 28px;
+		display: inline-block;
 		letter-spacing: 2px;
 }
 #navigation{

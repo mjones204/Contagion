@@ -25,9 +25,40 @@
 		<div id="simulations_container">
 			<div id="simulations"></div>
 		</div>
-
+		
 		<!-- Slideshow: words & buttons -->
 		<div id="slideshow_container">
+			<div id="test_button" style="display:none">Testing Tools</div>
+			<div id="test_tools_modal" style="display:none">
+				<div>Testing Tools</div>
+				<div class="tm_options_container">
+					<div class="tm_topologies_container">
+						<label for="tops">Choose a topology:</label>
+						<select name="tops" id="tm_topologies_dropdown" onChange="testModalTopologySelection(this.options[this.selectedIndex].value)">
+						</select>
+					</div>
+					<div class="tm_strategies_container">
+						<div class="tm_strategies_item">
+							<div class="tm_strategies_header"><strong>P1 Strategy:</strong></div>
+							<div id="tm_p1_strategy_list">
+							</div>
+						</div>
+						<div class="tm_strategies_item">
+							<div class="tm_strategies_header"><strong>P2 Strategy:</strong></div>
+							<div id="tm_p2_strategy_list">
+							</div>
+						</div>
+					</div>
+					<div class="tm_strategies_container">
+						<div class="tm_strategies_item">
+							<div class="tm_strategies_header"><strong>P1 next move: <span class="tm_next_move" id="p1_next_move"></span></strong></div>
+						</div>
+						<div class="tm_strategies_item">
+							<div class="tm_strategies_header"><strong>P2 next move: <span class="tm_next_move" id="p2_next_move"></span></strong></div>
+						</div>
+					</div>
+				</div>
+			</div>
 			<div id="slideshow"></div>
 		</div>
 
@@ -64,6 +95,7 @@
 
 		<!-- <div id="playerInfo"> -->
 			<div id="percent_infected_dialog"></div>
+			<!-- <div id="test_tools_btn">Test Tools</div> -->
 			<div id="score_dialog"></div>
 
 
@@ -126,6 +158,7 @@
 <script src="js/sim/Connection.js"></script>
 <script src="js/sim/ConnectorCutter.js"></script>
 <script src="js/sim/Simulations.js"></script>
+<script src="js/sim/TestingTools.js"></script>
 
 <script src="js/Server/Message.js"></script>
 
