@@ -218,20 +218,24 @@ Server.initialiseTopologyLayoutIndexes = function () {
   Server.CurrentTopologyIndex = 0; //Similarly to how the list tracks layouts, this variable tracks the next topology to be used
 };
 
-Server.setTestP1Strategy = function(strategy) {
+Server.setTestP1Strategy = function (strategy) {
   Server.TestP1Strategy = strategy;
 };
 
-Server.setTestP2Strategy = function(strategy) {
+Server.setTestP2Strategy = function (strategy) {
   Server.TestP2Strategy = strategy;
 };
 
-Server.setTestTopologyID = function(topologyID) {
+Server.setTestTopologyID = function (topologyID) {
   Server.TestTopologyID = topologyID;
 };
 
-Server.setTestLayoutID = function(layoutID) {
+Server.setTestLayoutID = function (layoutID) {
   Server.TestLayoutID = layoutID;
+};
+
+Server.getConfigData = function () {
+  return configData;
 };
 
 module.exports = {
@@ -245,6 +249,7 @@ module.exports = {
   setTestP1Strategy: Server.setTestP1Strategy,
   setTestP2Strategy: Server.setTestP2Strategy,
   sendSqlQuery: Server.sendSqlQuery,
+  getConfigData: Server.getConfigData,
   NeutralMode: Server.NeutralMode, //Allows other files to access these variables
   LocalMode: Server.LocalMode,
   TestMode: Server.TestMode,
@@ -269,7 +274,7 @@ Server.LoadExperiment = function (times) {
   }
   //When this has a non-zero value, topologies have been loaded
   if (configData.laplacians.length != 0) {
-    var experimentAi = require('./ExperimentalAi.js');
+    var experimentAi = require('./ExperimentalAi');
     setTimeout(() => {
       experimentAi.setupExperiment(this);
     }, 1500); //Debugger needs time to attach
@@ -293,7 +298,7 @@ Server.LoadTestSuite = function (times) {
   }
   //When this has a non-zero value, topologies have been loaded
   if (configData.laplacians.length != 0) {
-    var testSuite = require('./TestSuite.js');
+    var testSuite = require('./TestSuite');
     setTimeout(() => {
       testSuite.setupTest(this);
     }, 1500); //Debugger needs time to attach
@@ -460,12 +465,14 @@ GameState.prototype.addMovesToDatabase = function () {
 GameState.prototype.addPlayerMoves = function (moves, isPlayerOne, opponentReady) {
   //Performs AI moves before recording new player moves (to prevent bias)
   this.aiCheck();
-  if(Server.TestMode) {
+  if (Server.TestMode) {
 
   }
   //Sets either the server's recording of p1 moves or p2 moves depending o who sent it
   if (isPlayerOne) {
     this.playerOneMoves = moves;
+    console.log("moves", moves);
+    console.log("this.playerOneMoves", this.playerOneMoves);
   } else {
     this.playerTwoMoves = moves;
   }
@@ -555,7 +562,7 @@ GameState.prototype.aiCheck = function () {
       var aiPlayer = this.playerTwoMoves; //WARN: Assumes P2 always AI.
       var strategy = Server.AiStrategy;
       // in test mode the server uses the strategies as defined by TestPStrategy vars
-      if(Server.TestMode) {
+      if (Server.TestMode) {
         strategy = Server.TestP2Strategy;
       }
       this.aiTurn(aiPlayer, 0, strategy);
@@ -838,7 +845,7 @@ GameState.prototype.aiTurn = function (aiMoves, friendlyNodeStatus, strategy) {
   var playerOneMoves = [];
   var playerTwoMoves = [];
   // if it's not an actual move to be recorded we save a state of the AI moves
-  if(Server.TestMove) {
+  if (Server.TestMove) {
     prevAiMoves = [...this.prevAiMoves];
     playerOneMoves = [...this.playerOneMoves];
     playerTwoMoves = [...this.playerTwoMoves];
@@ -894,15 +901,14 @@ GameState.prototype.aiTurn = function (aiMoves, friendlyNodeStatus, strategy) {
       break;
   }
   // the move isn't to be recorded so we restore the game state
-  if(Server.TestMove) {
+  if (Server.TestMove) {
     var move = aiMoves[aiMoves.length - 1];
     aiMoves = [];
     this.prevAiMoves = [...prevAiMoves];
     this.playerOneMoves = [...playerOneMoves];
     this.playerTwoMoves = [...playerTwoMoves];
     return move;
-  }
-  else {
+  } else {
     if (this.isServerPlayer(friendlyNodeStatus)) {
       this.playerTwoMoves = aiMoves; //Allows server to add moves for either player
     } else {
@@ -1325,15 +1331,15 @@ Server.getConfig = function (twoPlayerMode, perm) {
     p2LayoutID = layoutID; //TODO: make this work outside the trial
 
     // for manual setting of topology and layout when testing
-    if(Server.TestMode) {
-      if(Server.TestTopologyID != null) {
+    if (Server.TestMode) {
+      if (Server.TestTopologyID != null) {
         // if the topologyID was set manually (e.g. to 2) this wont match the config index (serverConfigs[2][0] when we we really want serverConfigs[1][0])
         // we need to manually find and match the correct config index to the topology id
         // currently this can be achieved by subtracting 1 (i.e. topology 1 is in the 0th index of the config array)
         // but if we add more toplogies or change numbers this logic will need to be rectified
         topologyID = Server.TestTopologyID - 1;
       }
-      if(Server.TestLayoutID != null) {
+      if (Server.TestLayoutID != null) {
         layoutID = Server.TestLayoutID;
         p2LayoutID = Server.TestLayoutID;
       }
@@ -1610,10 +1616,9 @@ Server.calculatePlayerScoreFromNodes = function (score, playerNodes, roundNo) {
 Server.getAllGamesPlayedByUser = async function (userID) {
   var query = "SELECT * FROM master_games_table WHERE player_one_id = '" + userID + "' OR player_two_id = '" + userID + "'";
   var result = await Server.sendSqlQuery(query);
-  if(result) {
+  if (result) {
     return result.rows;
-  }
-  else {
+  } else {
     return [];
   }
 };
@@ -1622,10 +1627,9 @@ Server.getAllGamesPlayedByUser = async function (userID) {
 Server.getAllRoundsInfoForGame = async function (gameID) {
   var query = "SELECT * FROM player_actions_table WHERE game_id = '" + gameID + "' ORDER BY round_number ASC";
   var result = await Server.sendSqlQuery(query);
-  if(result) {
+  if (result) {
     return result.rows;
-  }
-  else {
+  } else {
     return [];
   }
 };
@@ -1634,10 +1638,9 @@ Server.getAllRoundsInfoForGame = async function (gameID) {
 Server.getRoundInfoForGame = async function (gameID, roundNo) {
   var query = "SELECT * FROM player_actions_table WHERE game_id = '" + gameID + "' AND round_number = " + roundNo;
   var result = await Server.sendSqlQuery(query);
-  if(result) {
+  if (result) {
     return result.rows;
-  }
-  else {
+  } else {
     return [];
   }
 };
@@ -1719,14 +1722,14 @@ Server.getMTurkInfoForClient = async function (username, lastGameID, ws) {
 
       // set info vars
       info.gamesPlayed++;
-      if(winner) {
+      if (winner) {
         info.gamesWon++;
       }
       info.totalReward += gameReward;
       // for the last game we save the reward separately so we can display it to the player
-      if(gameID == lastGameID) {
+      if (gameID == lastGameID) {
         info.lastGameReward = gameReward;
-        if(winner) {
+        if (winner) {
           info.lastGameWon = true;
         }
       }
@@ -1745,7 +1748,7 @@ Server.calculateMTurkRewardForGame = function (score, win) {
   var MTURK_MIN_SCORE_REWARD = 0.03;
   var MTURK_MAX_SCORE_REWARD = 0.20;
 
-  if(score <= 0) {
+  if (score <= 0) {
     return 0;
   }
 
@@ -1753,14 +1756,14 @@ Server.calculateMTurkRewardForGame = function (score, win) {
   reward += convertRange(score, [1, 3500], [MTURK_MIN_SCORE_REWARD, MTURK_MAX_SCORE_REWARD]);
 
   // winner bonus
-  if(win) {
+  if (win) {
     reward += MTURK_WIN_REWARD;
   }
   return reward;
 };
 
-function convertRange( value, r1, r2 ) { 
-  return ( value - r1[ 0 ] ) * ( r2[ 1 ] - r2[ 0 ] ) / ( r1[ 1 ] - r1[ 0 ] ) + r2[ 0 ];
+function convertRange(value, r1, r2) {
+  return (value - r1[0]) * (r2[1] - r2[0]) / (r1[1] - r1[0]) + r2[0];
 }
 
 //Gets a completion code from the database and return to client
@@ -1809,7 +1812,7 @@ Server.sendTestModeInfoToClient = function (ws) {
   var info = {};
   info.TestMode = Server.TestMode;
   // server is in test mode so gather info to pass to the client
-  if(Server.TestMode) {
+  if (Server.TestMode) {
     info.configs = serverConfigs;
     info.topologyID = Server.TestTopologyID;
     info.layoutID = Server.TestLayoutID;
@@ -1824,21 +1827,18 @@ Server.getNextMoveForPlayerFromStrategy = async function (game, playerNumber, st
   var moves = [];
   var friendlyNodeStatus;
   // is player one
-  if(playerNumber == 1) {
+  if (playerNumber == 1) {
     friendlyNodeStatus = 1;
     Server.setTestP1Strategy(strategy);
-  }
-  else {
+  } else {
     friendlyNodeStatus = 0;
     Server.setTestP2Strategy(strategy);
   }
-  if(strategy == "Manual") {
+  if (strategy == "Manual") {
     return "n/a";
-  }
-  else if(strategy == "Random") {
+  } else if (strategy == "Random") {
     return "random";
-  }
-  else if((strategy == "Mirror" || strategy == "Equilibrium") && game.roundNumber == 0) {
+  } else if ((strategy == "Mirror" || strategy == "Equilibrium") && game.roundNumber == 0) {
     return "random";
   }
 

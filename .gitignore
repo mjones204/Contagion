@@ -25,3 +25,4 @@ db_config.json
 
 # js lint config
 .jshintrc
+.prettierrc
