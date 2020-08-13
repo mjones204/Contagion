@@ -37,45 +37,75 @@ function setupTest(context) {
 	};
 	console.log('[TEST] Test Suite Started');
 
-	//runMultipleTests();
-	//newTest('Random', 'DSHigh', 2, 1);
+	//newTest('Random', p2Strategy, topologyID, 0, expStr);
+	runMultipleTests();
 	//runSimpleGames();
 	//runMonteCarlo();
+}
+
+function runDSStrategies() {
+	let p2Strategy = 'DSHigh';
+	let topologyID = 2;
+	let expStr = 0.4;
+	newTest('Random', p2Strategy, topologyID, 0, expStr);
+	for (let i = 1; i < 5; i++) {
+		setTimeout(() => {
+			newTest('Random', p2Strategy, topologyID, 0, expStr);
+		}, i * 1000);
+	}
+
+	setTimeout(() => {
+		expStr = 0.5;
+		for (let i = 0; i < 5; i++) {
+			setTimeout(() => {
+				newTest('Random', p2Strategy, topologyID, 0, expStr);
+			}, i * 1000);
+		}
+	}, 8000);
+
+	setTimeout(() => {
+		expStr = 0.6;
+		for (let i = 0; i < 5; i++) {
+			setTimeout(() => {
+				newTest('Random', p2Strategy, topologyID, 0, expStr);
+			}, i * 1000);
+		}
+	}, 16000);
 }
 
 function runMultipleTests() {
 	singularTest = false;
 	testsToRun = [];
-	const gameCount = 10000;
+	let gameCount = 10000;
 	testsToRun.push({
 		p1Strat: 'Random',
 		p2Strat: 'Random',
-		gameCount
+		gameCount,
 	});
 	testsToRun.push({
 		p1Strat: 'Random',
 		p2Strat: 'Mirror',
-		gameCount
+		gameCount,
 	});
 	testsToRun.push({
 		p1Strat: 'Random',
 		p2Strat: 'DSLow',
-		gameCount
+		gameCount,
 	});
 	testsToRun.push({
 		p1Strat: 'Random',
 		p2Strat: 'DSHigh',
-		gameCount
+		gameCount,
 	});
 	testsToRun.push({
 		p1Strat: 'Random',
 		p2Strat: 'Equilibrium',
-		gameCount
+		gameCount,
 	});
 	testsToRun.push({
 		p1Strat: 'Random',
 		p2Strat: 'SimpleGreedy',
-		gameCount
+		gameCount,
 	});
 	testsToRun.push({
 		p1Strat: 'Random',
@@ -91,27 +121,27 @@ function runMultipleTests() {
 	testsToRun.push({
 		p1Strat: 'Mirror',
 		p2Strat: 'Mirror',
-		gameCount
+		gameCount,
 	});
 	testsToRun.push({
 		p1Strat: 'Mirror',
 		p2Strat: 'DSLow',
-		gameCount
+		gameCount,
 	});
 	testsToRun.push({
 		p1Strat: 'Mirror',
 		p2Strat: 'DSHigh',
-		gameCount
+		gameCount,
 	});
 	testsToRun.push({
 		p1Strat: 'Mirror',
 		p2Strat: 'Equilibrium',
-		gameCount
+		gameCount,
 	});
 	testsToRun.push({
 		p1Strat: 'Mirror',
 		p2Strat: 'SimpleGreedy',
-		gameCount
+		gameCount,
 	});
 	testsToRun.push({
 		p1Strat: 'Mirror',
@@ -127,22 +157,22 @@ function runMultipleTests() {
 	testsToRun.push({
 		p1Strat: 'DSLow',
 		p2Strat: 'DSLow',
-		gameCount
+		gameCount,
 	});
 	testsToRun.push({
 		p1Strat: 'DSLow',
 		p2Strat: 'DSHigh',
-		gameCount
+		gameCount,
 	});
 	testsToRun.push({
 		p1Strat: 'DSLow',
 		p2Strat: 'Equilibrium',
-		gameCount
+		gameCount,
 	});
 	testsToRun.push({
 		p1Strat: 'DSLow',
 		p2Strat: 'SimpleGreedy',
-		gameCount
+		gameCount,
 	});
 	testsToRun.push({
 		p1Strat: 'DSLow',
@@ -158,17 +188,17 @@ function runMultipleTests() {
 	testsToRun.push({
 		p1Strat: 'DSHigh',
 		p2Strat: 'DSHigh',
-		gameCount
+		gameCount,
 	});
 	testsToRun.push({
 		p1Strat: 'DSHigh',
 		p2Strat: 'Equilibrium',
-		gameCount
+		gameCount,
 	});
 	testsToRun.push({
 		p1Strat: 'DSHigh',
 		p2Strat: 'SimpleGreedy',
-		gameCount
+		gameCount,
 	});
 	testsToRun.push({
 		p1Strat: 'DSHigh',
@@ -234,8 +264,81 @@ function runMultipleTests() {
 		p2Strat: 'GreedyPredictsGreedy',
 		gameCount,
 	});
-	console.log("testsToRun.length: " + testsToRun.length);
 
+	// *************
+	gameCount = 300; // reduce gamecount for montecarlo
+	// *************
+	// testsToRun.push({
+	// 	p1Strat: 'Random',
+	// 	p2Strat: 'MonteCarlo',
+	// 	gameCount,
+	// 	monteCarloIterations: 500,
+	// });
+	// testsToRun.push({
+	// 	p1Strat: 'Random',
+	// 	p2Strat: 'MonteCarlo',
+	// 	gameCount,
+	// 	monteCarloIterations: 1000,
+	// });
+	// testsToRun.push({
+	// 	p1Strat: 'Random',
+	// 	p2Strat: 'MonteCarlo',
+	// 	gameCount,
+	// 	monteCarloIterations: 2000,
+	// });
+	// testsToRun.push({
+	// 	p1Strat: 'Random',
+	// 	p2Strat: 'MonteCarlo',
+	// 	gameCount,
+	// 	monteCarloIterations: 3000,
+	// });
+	// testsToRun.push({
+	// 	p1Strat: 'Random',
+	// 	p2Strat: 'MonteCarlo',
+	// 	gameCount,
+	// 	monteCarloIterations: 10000,
+	// });
+	// testsToRun.push({
+	// 	p1Strat: 'Mirror',
+	// 	p2Strat: 'MonteCarlo',
+	// 	gameCount,
+	// });
+	// testsToRun.push({
+	// 	p1Strat: 'DSLow',
+	// 	p2Strat: 'MonteCarlo',
+	// 	gameCount,
+	// });
+	// testsToRun.push({
+	// 	p1Strat: 'DSHigh',
+	// 	p2Strat: 'MonteCarlo',
+	// 	gameCount,
+	// });
+	// testsToRun.push({
+	// 	p1Strat: 'Equilibrium',
+	// 	p2Strat: 'MonteCarlo',
+	// 	gameCount,
+	// });
+	// testsToRun.push({
+	// 	p1Strat: 'SimpleGreedy',
+	// 	p2Strat: 'MonteCarlo',
+	// 	gameCount,
+	// });
+	// testsToRun.push({
+	// 	p1Strat: 'GreedyPredictsHigh',
+	// 	p2Strat: 'MonteCarlo',
+	// 	gameCount,
+	// });
+	// testsToRun.push({
+	// 	p1Strat: 'GreedyPredictsGreedy',
+	// 	p2Strat: 'MonteCarlo',
+	// 	gameCount,
+	// });
+	// testsToRun.push({
+	// 	p1Strat: 'MonteCarlo',
+	// 	p2Strat: 'MonteCarlo',
+	// 	gameCount,
+	// });
+	console.log('testsToRun.length: ' + testsToRun.length);
 
 	// start running sims
 	runNextTest();
@@ -245,20 +348,55 @@ function runNextTest() {
 	if (testsToRun.length > 0) {
 		// load already ran tests from json
 		allResults = require('../test-results.json');
-		console.log("allResults.length: " + allResults.length);
-		let nextTest = testsToRun.shift();
-		// if the test doesn't appear in the results then run it
-		allResults.forEach(test => {
-			if (nextTest && test.p1Strategy === nextTest.p1Strat && test.p2Strategy === nextTest.p2Strat) {
-				nextTest = testsToRun.shift();
+		console.log('allResults.length: ' + allResults.length);
+		let test = undefined;
+		for (let i = 0; i < testsToRun.length; i++) {
+			test = testsToRun[i];
+			let testRecorded = false;
+			for (let j = 0; j < allResults.length; j++) {
+				let resultTest = allResults[j];
+				if (
+					test.p1Strat === resultTest.p1Strategy &&
+					test.p2Strat === resultTest.p2Strategy
+				) {
+					// monte carlo iterations is defined
+					if (
+						test.monteCarloIterations &&
+						resultTest.monteCarloIterations
+					) {
+						// iterations are the same - the test has already been run
+						if (
+							test.monteCarloIterations ===
+							resultTest.monteCarloIterations
+						) {
+							testRecorded = true;
+						} else {
+							testRecorded = false;
+						}
+					} else {
+						testRecorded = true;
+					}
+					break;
+				}
 			}
-		});
-		if (!nextTest) {
-			console.log("[TEST] nextTest undefined");
+			// test hasn't been saved yet
+			if (!testRecorded) {
+				break;
+			} else {
+				test = undefined;
+			}
+		}
+
+		if (!test) {
+			// finished
+			console.log('[TEST] Finished running all tests!');
 		} else {
 			// run test
-			console.log('[TEST] Running test: ', nextTest);
-			newMultipleGamesTest(nextTest);
+			console.log('[TEST] Running test: ', test);
+			console.log('index of test: ' + testsToRun.indexOf(test));
+			console.log('test', test);
+			testsToRun.splice(testsToRun.indexOf(test), 1);
+			newMultipleGamesTest(test);
 		}
 	} else {
 		// finished
@@ -272,6 +410,7 @@ function newMultipleGamesTest({
 	gameCount = 1,
 	topologyID = null,
 	layoutID = null,
+	monteCarloIterations = null,
 }) {
 	// set strategies
 	p1Strategy = p1Strat;
@@ -282,6 +421,11 @@ function newMultipleGamesTest({
 	// (when null the server will just use random ones as usual)
 	Server.setTestTopologyID(topologyID);
 	Server.setTestLayoutID(layoutID);
+
+	// set monte carlo iterations if defined
+	if (monteCarloIterations) {
+		Server.setMonteCarloIterations(monteCarloIterations);
+	}
 
 	// these variables are checked in gameOver() to see whether another game should be run
 	gamesPlayed = 0;
@@ -296,13 +440,16 @@ function newMultipleGamesTest({
 	results.p1Wins = 0;
 	results.p2Wins = 0;
 	results.draws = 0;
-	results.p1AverageBoardShares = [];
-	results.p2AverageBoardShares = [];
+	results.p1AverageVoteShares = [];
+	results.p2AverageVoteShares = [];
+	if (monteCarloIterations) {
+		results.monteCarloIterations = monteCarloIterations;
+	}
 
 	gameStart();
 }
 
-function newTest(p1Strat, p2Strat, topologyID = null, layoutID = null) {
+function newTest(p1Strat, p2Strat, topologyID = null, layoutID = null, expStr) {
 	singularTest = true;
 	// set strategies
 	p1Strategy = p1Strat;
@@ -313,6 +460,11 @@ function newTest(p1Strat, p2Strat, topologyID = null, layoutID = null) {
 	// (when null the server will just use random ones as usual)
 	Server.setTestTopologyID(topologyID);
 	Server.setTestLayoutID(layoutID);
+
+	// set exp strength if specified
+	if (expStr) {
+		Server.setExponentStrength(expStr);
+	}
 
 	gameStart();
 }
@@ -341,36 +493,39 @@ function gameOver(payload) {
 	// }
 	// console.log('[TEST] Game Over - ' + winnerText);
 	// console.log(
-	// 	`Player 1 (${p1Strategy}) Moves: ${game.playerOneMoves} Scores: ${game.playerOneScoreList} BoardShares: ${game.playerOneBoardShareList}`,
+	// 	`Player 1 (${p1Strategy}) Moves: ${game.playerOneMoves} Scores: ${game.playerOneScoreList} VoteShares: ${game.playerOneVoteShareList}`,
 	// );
 	// console.log(
-	// 	`Player 2 (${p2Strategy}) Moves: ${game.playerTwoMoves} Scores: ${game.playerTwoScoreList} BoardShares: ${game.playerTwoBoardShareList}`,
+	// 	`Player 2 (${p2Strategy}) Moves: ${game.playerTwoMoves} Scores: ${game.playerTwoScoreList} VoteShares: ${game.playerTwoVoteShareList}`,
 	// );
 
-	var p1FinalBoardShare =
-		game.playerOneBoardShareList[game.playerOneBoardShareList.length - 1];
-	var p2FinalBoardShare =
-		game.playerTwoBoardShareList[game.playerTwoBoardShareList.length - 1];
+	var p1FinalVoteShare =
+		game.playerOneVoteShareList[game.playerOneVoteShareList.length - 1];
+	var p2FinalVoteShare =
+		game.playerTwoVoteShareList[game.playerTwoVoteShareList.length - 1];
 
 	// init game results (single game results)
 	let gameResults = {};
 	gameResults.p1Strategy = p1Strategy;
 	gameResults.p2Strategy = p2Strategy;
+	gameResults.topologyId = ctx.TestTopologyID;
 	gameResults.p1Moves = game.playerOneMoves;
 	gameResults.p2Moves = game.playerTwoMoves;
-	gameResults.p1BoardShareList = game.playerOneBoardShareList;
-	gameResults.p2BoardShareList = game.playerTwoBoardShareList;
+	//gameResults.p1VoteShareList = game.playerOneVoteShareList;
+	//gameResults.p2VoteShareList = game.playerTwoVoteShareList;
 	gameResults.p1MoveNodeDegreeList = game.playerOneNodeDegreeList;
 	gameResults.p2MoveNodeDegreeList = game.playerTwoNodeDegreeList;
+	gameResults.p2ExponentStrength = game.exponentStrength;
 	gameResults.p2RandomNumberList = game.p2RandomNumberList;
-	gameResults.p2Distribution = game.p2Distribution;
-	gameResults.p2MaxValue = game.p2MaxValue;
+	gameResults.p2Pdf = game.p2Pdf;
+	gameResults.p2PdfNorm = game.p2PdfNorm;
+	gameResults.p2SortedPdfInfo = game.p2SortedPdfInfo;
 	//gameResults.p1ScoreList = game.playerOneScoreList;
 	//gameResults.p2ScoreList = game.playerTwoScoreList;
 	// calculate winne
-	if (p1FinalBoardShare > p2FinalBoardShare) {
+	if (p1FinalVoteShare > p2FinalVoteShare) {
 		gameResults.winner = 1; // p1 wins
-	} else if (p1FinalBoardShare < p2FinalBoardShare) {
+	} else if (p1FinalVoteShare < p2FinalVoteShare) {
 		gameResults.winner = 2; // p2 wins
 	} else {
 		gameResults.winner = 0; // draw
@@ -389,19 +544,19 @@ function gameOver(payload) {
 			results.draws++;
 		}
 		// no board share info has been added yet - init with last game's shares
-		if (results.p1AverageBoardShares.length == 0) {
-			results.p1AverageBoardShares = game.playerOneBoardShareList.slice(0);
-			results.p2AverageBoardShares = game.playerTwoBoardShareList.slice(0);
+		if (results.p1AverageVoteShares.length == 0) {
+			results.p1AverageVoteShares = game.playerOneVoteShareList.slice(0);
+			results.p2AverageVoteShares = game.playerTwoVoteShareList.slice(0);
 		} else {
-			for (let i = 0; i < results.p1AverageBoardShares.length; i++) {
-				const cur = results.p1AverageBoardShares[i];
-				results.p1AverageBoardShares[i] =
-					cur + game.playerOneBoardShareList[i];
+			for (let i = 0; i < results.p1AverageVoteShares.length; i++) {
+				const cur = results.p1AverageVoteShares[i];
+				results.p1AverageVoteShares[i] =
+					cur + game.playerOneVoteShareList[i];
 			}
-			for (let i = 0; i < results.p2AverageBoardShares.length; i++) {
-				const cur = results.p2AverageBoardShares[i];
-				results.p2AverageBoardShares[i] =
-					cur + game.playerTwoBoardShareList[i];
+			for (let i = 0; i < results.p2AverageVoteShares.length; i++) {
+				const cur = results.p2AverageVoteShares[i];
+				results.p2AverageVoteShares[i] =
+					cur + game.playerTwoVoteShareList[i];
 			}
 		}
 	}
@@ -410,13 +565,13 @@ function gameOver(payload) {
 	game = null;
 
 	if (singularTest) {
-		console.log(gameResults)
+		console.log(JSON.stringify(gameResults) + ',');
 		return;
 	}
 
 	// increment games played count
 	gamesPlayed++;
-	if (gamesPlayed % 100 === 0) {
+	if (gamesPlayed % 1000 === 0) {
 		console.log('[TEST] Games Played: ' + gamesPlayed);
 	}
 	// run another game
@@ -431,18 +586,21 @@ function gameOver(payload) {
 
 function appendTestResults() {
 	// calculate average board shares based on games played
-	for (let i = 0; i < results.p1AverageBoardShares.length; i++) {
-		const cur = results.p1AverageBoardShares[i];
-		results.p1AverageBoardShares[i] = parseFloat(
+	for (let i = 0; i < results.p1AverageVoteShares.length; i++) {
+		const cur = results.p1AverageVoteShares[i];
+		results.p1AverageVoteShares[i] = parseFloat(
 			(cur / results.gamesPlayed).toFixed(3),
 		);
 	}
-	for (let i = 0; i < results.p2AverageBoardShares.length; i++) {
-		const cur = results.p2AverageBoardShares[i];
-		results.p2AverageBoardShares[i] = parseFloat(
+	for (let i = 0; i < results.p2AverageVoteShares.length; i++) {
+		const cur = results.p2AverageVoteShares[i];
+		results.p2AverageVoteShares[i] = parseFloat(
 			(cur / results.gamesPlayed).toFixed(3),
 		);
 	}
+	results.p1WinRatio = (results.p1Wins / results.gamesPlayed).toFixed(3);
+	results.p2WinRatio = (results.p2Wins / results.gamesPlayed).toFixed(3);
+	results.drawRatio = (results.draws / results.gamesPlayed).toFixed(3);
 	allResults.push(results);
 	console.log(results);
 	writeJsonToFile(allResults);
@@ -563,6 +721,8 @@ function runMonteCarlo() {
 		p2Moves: [],
 		p1ScoreList: [],
 		p2ScoreList: [],
+		p1VoteShareList: [],
+		p2VoteShareList: [],
 		formattedPeeps: network.peeps,
 		formattedConnections: network.connections,
 		flippedNodes: [],
