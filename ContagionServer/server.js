@@ -16,8 +16,9 @@ Server.TestMoves = [
 ];
 Server.playerTopologies = [];
 Server.LastRoundBonus = 5;
-Server.ExponentStrength = 2; //Higher = more bias to high/low degree nodes in their respective strategies
+Server.ExponentStrength = 0.4; // Higher = more bias to high/low degree nodes in their respective strategies
 Server.ExistingTokensBias = 0; //Increases likelihood of placing tokens on nodes that already have tokens. Negative reduces the likelihood.
+Server.MonteCarloIterations = 2000;
 //Only affects degree sensitive strategies. We decided to make this 0 to simplify analysis.
 console.info('Server starting!');
 //Shuffles lists
@@ -108,9 +109,7 @@ if (!Server.LocalMode) {
 		var dbConfig = require('./db_config.json');
 		process.env.DATABASE_URL = dbConfig.DATABASE_URL;
 	}
-	const {
-		Client
-	} = require('pg');
+	const { Client } = require('pg');
 	client = new Client({
 		connectionString: process.env.DATABASE_URL,
 		ssl: true,
@@ -120,9 +119,7 @@ if (!Server.LocalMode) {
 }
 
 var clone = require('clone'); //Allows deep cloning of objects (for parallel games with shared starting resources)
-const {
-	Console
-} = require('console');
+const { Console } = require('console');
 
 //Handles storing of data to database
 Server.sendSqlQuery = async function (query) {
@@ -239,6 +236,14 @@ Server.setTestLayoutID = function (layoutID) {
 	Server.TestLayoutID = layoutID;
 };
 
+Server.setExponentStrength = function (strength) {
+	Server.ExponentStrength = strength;
+};
+
+Server.setMonteCarloIterations = function (iterations) {
+	Server.MonteCarloIterations = iterations;
+};
+
 Server.getConfigData = function () {
 	return configData;
 };
@@ -253,6 +258,8 @@ module.exports = {
 	setTestLayoutID: Server.setTestLayoutID,
 	setTestP1Strategy: Server.setTestP1Strategy,
 	setTestP2Strategy: Server.setTestP2Strategy,
+	setExponentStrength: Server.setExponentStrength,
+	setMonteCarloIterations: Server.setMonteCarloIterations,
 	sendSqlQuery: Server.sendSqlQuery,
 	getConfigData: Server.getConfigData,
 	NeutralMode: Server.NeutralMode, //Allows other files to access these variables
@@ -344,7 +351,7 @@ function Server() {
 	];
 	// For testing
 	Server.TestTopologyID = 2;
-	Server.TestLayoutID = 0;
+	Server.TestLayoutID = 1;
 	Server.TestP1Strategy = 'Random';
 	Server.TestP2Strategy = 'Mirror';
 	Server.TestMove = false; // true when a move is requested to be calculated but not submitted (i.e. to see what move a strategy would pick next round)
@@ -395,8 +402,8 @@ class GameState {
 		this.laplacianID = laplacianID; //Stores index of the laplacian used in this game for easy retrieval
 		this.playerOneScoreList = []; //Records score per round
 		this.playerTwoScoreList = [];
-		this.playerOneBoardShareList = []; // records board share (ratio of percent infected) per round
-		this.playerTwoBoardShareList = [];
+		this.playerOneVoteShareList = []; // records board share (ratio of percent infected) per round
+		this.playerTwoVoteShareList = [];
 		// used for testing strategies
 		this.playerOneNodeDegreeList = [];
 		this.playerTwoNodeDegreeList = [];
@@ -430,13 +437,13 @@ GameState.prototype.addGameToDatabase = function () {
 	});
 	//sets ID to "AI" if they aren't a human player
 	var p1id =
-		this.playerOne != null && this.playerOne != 'AI' ?
-		this.playerOne.id :
-		'AI';
+		this.playerOne != null && this.playerOne != 'AI'
+			? this.playerOne.id
+			: 'AI';
 	var p2id =
-		this.playerTwo != null && this.playerTwo != 'AI' ?
-		this.playerTwo.id :
-		'AI';
+		this.playerTwo != null && this.playerTwo != 'AI'
+			? this.playerTwo.id
+			: 'AI';
 	if (p2id == 'AI') {
 		//Renames some AI's attributes to be more descriptive in the database
 		p2id += Server.AiStrategy;
@@ -465,13 +472,13 @@ GameState.prototype.addGameToDatabase = function () {
 //updates the database game record if P1 or P2 changes
 GameState.prototype.updateGameDatabaseEntry = function () {
 	var p1id =
-		this.playerOne != null && this.playerOne != 'AI' ?
-		this.playerOne.id :
-		'AI';
+		this.playerOne != null && this.playerOne != 'AI'
+			? this.playerOne.id
+			: 'AI';
 	var p2id =
-		this.playerTwo != null && this.playerTwo != 'AI' ?
-		this.playerTwo.id :
-		'AI';
+		this.playerTwo != null && this.playerTwo != 'AI'
+			? this.playerTwo.id
+			: 'AI';
 
 	let _gameID = this.gameID;
 	let _p1id = p1id;
@@ -543,7 +550,8 @@ GameState.prototype.addPlayerMoves = function (
 ) {
 	//Performs AI moves before recording new player moves (to prevent bias)
 	this.aiCheck();
-	if (Server.TestMode) {}
+	if (Server.TestMode) {
+	}
 	//Sets either the server's recording of p1 moves or p2 moves depending o who sent it
 	if (isPlayerOne) {
 		this.playerOneMoves = moves;
@@ -614,8 +622,8 @@ GameState.prototype.addPlayerOneMoves = function (moves) {
 			//Calculates the time P2 has remaining
 			this.addPlayerOneTimer(
 				60 +
-				this.playerTwoTimeOffset -
-				(Date.now() - this.gameStartTime),
+					this.playerTwoTimeOffset -
+					(Date.now() - this.gameStartTime),
 			);
 		}
 	}
@@ -777,7 +785,7 @@ GameState.prototype.killGame = function (naturalEnd, game, causer) {
 GameState.prototype.newTurn = function () {
 	this.roundNumber++;
 	this.performInfections();
-	this.calculateBoardShares();
+	this.calculateVoteShares();
 	this.recordMoveNodeDegrees();
 	this.addMovesToDatabase();
 	this.updateScores();
@@ -877,8 +885,19 @@ GameState.prototype.updateClients = function () {
 	}
 };
 
-GameState.prototype.recordMoveNodeDegrees = function () {
+GameState.prototype.getDegreeOfNode = function (nodeIndex) {
+	// generate nodeDegree lookup array
+	let nodeDegrees = [];
+	const laplacian = clone(laplaciansList[this.laplacianID]);
+	for (let i = 0; i < Server.NumberOfNodes; i++) {
+		const nodeDegree = laplacian[i][i]; //Gets the node degree from the laplacian diagonal
+		nodeDegrees[i] = nodeDegree;
+	}
 
+	return nodeDegrees[nodeIndex];
+};
+
+GameState.prototype.recordMoveNodeDegrees = function () {
 	// generate nodeDegree lookup array
 	let nodeDegrees = [];
 	const laplacian = clone(laplaciansList[this.laplacianID]);
@@ -894,9 +913,9 @@ GameState.prototype.recordMoveNodeDegrees = function () {
 	this.playerTwoNodeDegreeList.push(nodeDegrees[p2LastMove]);
 };
 
-GameState.prototype.calculateBoardShares = function () {
-	var p1Nodes = [];
-	var p2Nodes = [];
+GameState.prototype.calculateVoteShares = function () {
+	const p1Nodes = [];
+	const p2Nodes = [];
 
 	// nodes either player owns after infection
 	this.formattedPeeps.forEach(function (peep, index) {
@@ -907,10 +926,12 @@ GameState.prototype.calculateBoardShares = function () {
 		}
 	});
 
-	var p1BoardShare = p1Nodes.length / this.formattedPeeps.length;
-	var p2BoardShare = p2Nodes.length / this.formattedPeeps.length;
-	this.playerOneBoardShareList.push(p1BoardShare);
-	this.playerTwoBoardShareList.push(p2BoardShare);
+	const infectedNodes = p1Nodes.length + p2Nodes.length;
+
+	const p1VoteShare = p1Nodes.length / infectedNodes;
+	const p2VoteShare = p2Nodes.length / infectedNodes;
+	this.playerOneVoteShareList.push(p1VoteShare);
+	this.playerTwoVoteShareList.push(p2VoteShare);
 };
 
 //NB: INFECTED/UNINFECTED IS FROM POV OF PLAYER1!
@@ -1004,6 +1025,8 @@ GameState.prototype.toState = function () {
 		p2Moves: this.playerTwoMoves.slice(0),
 		p1ScoreList: this.playerOneScoreList.slice(0),
 		p2ScoreList: this.playerTwoScoreList.slice(0),
+		p1VoteShareList: this.playerOneVoteShareList.slice(0),
+		p2VoteShareList: this.playerTwoVoteShareList.slice(0),
 		formattedPeeps: JSON.parse(JSON.stringify(this.formattedPeeps)),
 		formattedConnections: this.formattedConnections.slice(0),
 		flippedNodes: this.flippedNodes.slice(0),
@@ -1049,7 +1072,11 @@ GameState.prototype.aiTurn = function (aiMoves, friendlyNodeStatus, strategy) {
 			if (this.isServerPlayer(friendlyNodeStatus)) {
 				playerNumber = 2;
 			}
-			const move = MonteCarlo.aiTurnMonteCarlo(state, playerNumber);
+			const move = MonteCarlo.aiTurnMonteCarlo(
+				state,
+				playerNumber,
+				Server.MonteCarloIterations,
+			);
 			if (this.isServerPlayer(friendlyNodeStatus)) {
 				this.prevAiMoves.push(move);
 				this.prevAiMoves.forEach((m) => aiMoves.push(m));
@@ -1353,48 +1380,31 @@ GameState.prototype.aiTurnDegreeSensitive = function (
 	friendlyNodeStatus,
 	monte,
 ) {
+	// game exponent strength not set
+	if (!this.exponentStrength) {
+		this.exponentStrength = Server.ExponentStrength;
+		//negative exponent weighs high degree nodes lower
+		if (lowDegreeSensitivity) {
+			this.exponentStrength *= -1;
+		}
+	}
 	var i, token, nodeWeight;
 	if (Server.TokenProtocol == 'Incremental') {
-		var nodeWeights = [];
+		var pdfs = [];
 		//I repurpose the laplacian here - taking the diagonal just gives me the degrees of each node!
 		var laplacian = clone(laplaciansList[this.laplacianID]);
 
-		//Represents existing tokens as extra/fewer degrees on the node depending on the effect you want extra tokens to have.
-		//NOTE: We decided that this makes analysing games too difficult, so you can ignore this block.
-		// if (Server.ExistingTokensBias != 0) {
-		//   if (this.isServerPlayer(friendlyNodeStatus)) {
-		//     for (i = 0; i < this.prevAiMoves.length; i++) { //Is agnostic of opponent's moves
-		//       token = this.prevAiMoves[i];
-		//       laplacian[token][token] += Server.ExistingTokensBias;
-		//     }
-		//   } else { //This is the above but for when the experimental opposition AI is playing.
-		//     for (i = 0; i < this.length; i++) {
-		//       token = this.playerOneMoves[i];
-		//       laplacian[token][token] += Server.ExistingTokensBias;
-		//     }
-		//   }
-		// }
 		for (i = 0; i < Server.NumberOfNodes; i++) {
+			let pdf = 0;
 			var nodeDegree = laplacian[i][i]; //Gets the node degree from the laplacian diagonal
 
 			//Assigns a weight (i.e. relative likelihood of being chosen) to the node depending on # degrees and high/low preference
-			if (lowDegreeSensitivity) {
-				nodeWeight = extMath.exp(Server.ExponentStrength * nodeDegree * -1); //negative exponent weights high degree nodes lower
-			} else {
-				nodeWeight = extMath.exp(Server.ExponentStrength * nodeDegree); //e^(strength*degree)
-			}
-			nodeWeights.push(nodeWeight);
+			pdf = extMath.exp(this.exponentStrength * nodeDegree); //e^(strength*degree)
+			pdfs.push(pdf);
 		}
-		var max = extMath.sum(nodeWeights); //Gets the sum of all the weights to facilitate the choice below.
-
-		//nodeWeights[i] = nodeWeights[i] * 100 / max; //normalises the list, becomes % chance to pick. Use this for debugging if you want.
-
-		// for (var i=0; i < 10000; i++){ //Old testing code - useful for debugging.
-		//     monte[this.chooseFromDistribution(nodeWeights, 100)]++;
-		// }
 
 		//Samples a node from the weighting distribution
-		var peepIndex = this.chooseFromDistribution(nodeWeights, max);
+		var peepIndex = this.chooseFromDistribution(pdfs);
 
 		//As always, assigns the node to the player's moveset.
 		if (this.isServerPlayer(friendlyNodeStatus)) {
@@ -1405,10 +1415,7 @@ GameState.prototype.aiTurnDegreeSensitive = function (
 		} else {
 			aiMoves.push(peepIndex);
 		}
-		//monte[peepIndex]++;
-		// this.prevAiMoves.forEach(function(move){
-		//   aiMoves.push(move);
-		// });
+
 		return;
 	} else {
 		console.error(
@@ -1420,23 +1427,51 @@ GameState.prototype.aiTurnDegreeSensitive = function (
 //Samples a node based on the distribution of weights.
 //The weights are summed to give a maxValue, and starting from node 0, we check if the random value is
 //part of each bucket (representing each node's weighting)
-GameState.prototype.chooseFromDistribution = function (distribution, maxValue) {
-	var rand = Math.random();
+GameState.prototype.chooseFromDistribution = function (pdfs) {
+	const rand = Math.random();
 
+	const max = extMath.max(pdfs); //Gets the max pdf in the array
+	// get normalised pdf values
+	let pdfNorms = pdfs.map((pdf) => {
+		return pdf / max;
+	});
 	// logging for DSLow and DSHigh testing
 	this.p2RandomNumberList.push(rand); // random number
-	this.p2MaxValue = maxValue; // maxValue (same each round)
-	this.p2Distribution = distribution.slice(0); // distribution (same each round)
+	this.p2Pdf = pdfs.slice(0); // distribution (same each round)
+	this.p2PdfNorm = pdfNorms.slice(0); // log normalised pdf before shuffling
 
-	rand = Math.random() * maxValue;
+	// add node indexes to pdf norms (so we can still lookup node after shuffling)
+	let pdfNormsIndex = pdfNorms.map((pdfNorm, index) => {
+		return {
+			index,
+			degree: this.getDegreeOfNode(index),
+			pdf: pdfs[index],
+			pdfNorm,
+		};
+	});
+	// shuffle to randomise node order
+	shuffleArray(pdfNormsIndex);
+	// sort by pdfNorm value in ascending order
+	pdfNormsIndex.sort(function (a, b) {
+		if (a.pdfNorm < b.pdfNorm) {
+			return -1;
+		}
+		if (a.pdfNorm > b.pdfNorm) {
+			return 1;
+		}
+		return 0;
+	});
 
-	for (var i = 0; i < distribution.length; i++) {
-		rand -= distribution[i];
-		if (rand < 0) {
-			return i;
+	// for logging
+	this.p2SortedPdfInfo = pdfNormsIndex.slice(0).reverse();
+
+	for (let i = 0; i < pdfNormsIndex.length; i++) {
+		if (pdfNormsIndex[i].pdfNorm >= rand) {
+			return pdfNormsIndex[i].index;
 		}
 	}
-	console.error('ERROR CHOOSING FROM DISTRIBUTION!');
+	console.log('ERROR: ChooseFromDistribution failed');
+	return 0;
 };
 
 //AI strategy that begins random, then does whatever the opponent did last.
@@ -1526,6 +1561,26 @@ GameState.prototype.outOfTime = function (isPlayerOne) {
 
 //########################################################################################END GAMESTATE
 
+function shuffleArray(array) {
+	var currentIndex = array.length,
+		temporaryValue,
+		randomIndex;
+
+	// While there remain elements to shuffle...
+	while (0 !== currentIndex) {
+		// Pick a remaining element...
+		randomIndex = Math.floor(Math.random() * currentIndex);
+		currentIndex -= 1;
+
+		// And swap it with the current element.
+		temporaryValue = array[currentIndex];
+		array[currentIndex] = array[randomIndex];
+		array[randomIndex] = temporaryValue;
+	}
+
+	return array;
+}
+
 //When a player sends clicks, moves or heartbeats to the server, we find the game and make sure it's still alive
 Server.validateGame = function (ws) {
 	//Finds the game the current websocket belongs to
@@ -1565,9 +1620,9 @@ Server.submitMoves = function (message, ws) {
 	) {
 		console.error(
 			'ERR ERR WRONG NO OF TOKENS!' +
-			message.length +
-			' ' +
-			game.roundNumber,
+				message.length +
+				' ' +
+				game.roundNumber,
 		);
 	}
 
@@ -1744,6 +1799,7 @@ Server.newGame = function (username, ws) {
 			try {
 				config = Server.getConfig(false, ws.permutation); //Don't need to retain the config for the next player if its vs the AI.
 			} catch (e) {
+				console.log(e);
 				console.error('TRIGGERED FAILSAFE WITH GETTING CONFIG!');
 				config = Server.getConfig(false);
 			}
@@ -2083,8 +2139,8 @@ Server.getMTurkInfoForClient = async function (username, lastGameID, ws) {
 		} else {
 			console.log(
 				'getMTurkInfoForClient [Error] Game: ' +
-				gameID +
-				' does not have 10 rounds in the database',
+					gameID +
+					' does not have 10 rounds in the database',
 			);
 		}
 	}
@@ -2146,8 +2202,8 @@ Server.getCompletionCodeForPlayer = async function (username) {
 	if (!result || result.rows.length <= 0) {
 		console.log(
 			'No completion code for player: ' +
-			username +
-			' found, generating new one',
+				username +
+				' found, generating new one',
 		);
 		var completion_code = Server.generateCompletionCode();
 		var timestamp = new Date().toISOString().slice(0, -1);
