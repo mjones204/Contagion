@@ -1,5 +1,6 @@
 const SeededRNGGenerator = require('./seedrandom.min');
 
+// a class to abstract only the fundamental parts of GameState in server.js (no network connection code etc)
 module.exports = class MCGame {
 	constructor() {
 		this.state = {
@@ -10,6 +11,8 @@ module.exports = class MCGame {
 			p2Moves: [],
 			p1ScoreList: [],
 			p2ScoreList: [],
+			p1VoteShareList: [],
+			p2VoteShareList: [],
 			formattedPeeps: [],
 			formattedConnections: [],
 			flippedNodes: [],
@@ -38,6 +41,8 @@ module.exports = class MCGame {
 			p2Moves: this.state.p2Moves.slice(0),
 			p1ScoreList: this.state.p1ScoreList.slice(0),
 			p2ScoreList: this.state.p2ScoreList.slice(0),
+			p1VoteShareList: this.state.p1VoteShareList.slice(0),
+			p2VoteShareList: this.state.p2VoteShareList.slice(0),
 			formattedPeeps: JSON.parse(
 				JSON.stringify(this.state.formattedPeeps),
 			),
@@ -69,11 +74,33 @@ module.exports = class MCGame {
 		return prevScore;
 	}
 
+	getPlayerVoteShare(playerNumber) {
+		let voteShareList = [];
+		if (playerNumber == 1) {
+			voteShareList = this.state.p1VoteShareList;
+		} else {
+			voteShareList = this.state.p2VoteShareList;
+		}
+		let [lastVoteShare] = voteShareList.slice(-1);
+		if (!lastVoteShare) {
+			lastVoteShare = 0;
+		}
+		return lastVoteShare;
+	}
+
 	getPlayerScoreList(playerNumber) {
 		if (playerNumber == 1) {
 			return this.state.p1ScoreList;
 		} else {
 			return this.state.p2ScoreList;
+		}
+	}
+
+	getPlayerVoteShareList(playerNumber) {
+		if (playerNumber == 1) {
+			return this.state.p1VoteShareList;
+		} else {
+			return this.state.p2VoteShareList;
 		}
 	}
 
@@ -106,17 +133,20 @@ module.exports = class MCGame {
 		if (this.state.p1Moves.length == this.state.p2Moves.length) {
 			this.state.roundNumber++;
 			this.performInfections();
+			this.calculateVoteShare();
 			this.updateScores();
 
 			if (this.state.roundNumber >= this.state.roundLimit) {
 				this.state.gameOver = true;
-				// winner based on scores
+				// winner based on vote share
 				// player 1 wins
-				if (this.getPlayerScore(1) > this.getPlayerScore(2)) {
+				if (this.getPlayerVoteShare(1) > this.getPlayerVoteShare(2)) {
 					this.state.winner = 1;
 				}
 				// player 2 wins
-				else if (this.getPlayerScore(2) > this.getPlayerScore(1)) {
+				else if (
+					this.getPlayerVoteShare(2) > this.getPlayerVoteShare(1)
+				) {
 					this.state.winner = 2;
 				}
 				// draw
@@ -151,6 +181,25 @@ module.exports = class MCGame {
 		// add new score
 		this.state.p1ScoreList.push(this.getPlayerScore(1) + p1AdditionalScore);
 		this.state.p2ScoreList.push(this.getPlayerScore(2) + p2AdditionalScore);
+	}
+	calculateVoteShare() {
+		const p1Nodes = [];
+		const p2Nodes = [];
+
+		// nodes either player owns after infection
+		this.state.formattedPeeps.forEach(function (peep, index) {
+			if (peep[2] == 1) {
+				p1Nodes.push(index);
+			} else if (peep[2] == 0) {
+				p2Nodes.push(index);
+			}
+		});
+		const infectedNodes = p1Nodes.length + p2Nodes.length;
+
+		const p1VoteShare = p1Nodes.length / infectedNodes;
+		const p2VoteShare = p2Nodes.length / infectedNodes;
+		this.state.p1VoteShareList.push(p1VoteShare);
+		this.state.p2VoteShareList.push(p2VoteShare);
 	}
 
 	performInfections() {

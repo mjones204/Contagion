@@ -1,7 +1,7 @@
 // Simple Monte Carlo - For each position, k-random games are played out n rounds - highest score at the end determines best moves
 // k random games are played out to the very end, and the scores are recorded. The move leading to the best score is chosen.
 const MCGame = require('./MCGame');
-const MCTS = require('./mcts-js.build').MCTS;
+const MCTS = require('./MCTS').MCTS;
 module.exports.monteCarloTreeSearch = monteCarloTreeSearch;
 module.exports.aiTurnMonteCarlo = aiTurnMonteCarlo;
 
@@ -20,7 +20,7 @@ function monteCarloTreeSearch(state) {
 	let game = new MCGame();
 	game.setState(state);
 
-	let iterations = 2000; //more iterations -> stronger AI, more computation
+	let iterations = 25000; //more iterations -> stronger AI, more computation
 	let exploration = 1.41; //exploration vs. explotation parameter, sqrt(2) is reasonable default (c constant in UBC forumula)
 
 	let player1 = new MCTS(game, 1, iterations, exploration);
@@ -29,7 +29,6 @@ function monteCarloTreeSearch(state) {
 	//const player2Type = 'MCTS';
 	let player2 = new RandomAI(game);
 	const player2Type = 'Random';
-
 
 	console.log('Starting Monte Carlo Tree Search');
 	while (true) {
@@ -54,36 +53,37 @@ function monteCarloTreeSearch(state) {
 	console.log(
 		`Player 1 (${player1Type}) Moves: ${game.getPlayerMoves(
 			1,
-		)} Scores: ${game.getPlayerScoreList(1)}`,
+		)} Scores: ${game.getPlayerVoteShareList(1)}`,
 	);
 	console.log(
 		`Player 2 (${player2Type}) Moves: ${game.getPlayerMoves(
 			2,
-		)} Scores: ${game.getPlayerScoreList(2)}`,
+		)} Scores: ${game.getPlayerVoteShareList(2)}`,
 	);
 }
 
-function aiTurnMonteCarlo(state, playerNumber) {
+//more iterations -> stronger AI, more computation
+function aiTurnMonteCarlo(state, playerNumber, iterations = 2000) {
 	// create a new game with the starting state
 	let game = new MCGame();
 	game.setState(state);
 	//console.log(state);
 
-	let iterations = 50000; //more iterations -> stronger AI, more computation
 	let exploration = 1.41; //exploration vs. explotation parameter, sqrt(2) is reasonable default (c constant in UBC forumula)
 
 	if (playerNumber == 2 && state.p1Moves.length == state.p2Moves.length) {
 		//since we dont have p1's moves yet, we have p1 make a reasonable move before running mcts for player 2
-		console.log('Calculating Preliminary MCTS move');
-		let player = new MCTS(game, 1, iterations / 5, exploration);
+		//console.log('Calculating Preliminary MCTS move');
+		//let player = new MCTS(game, 1, iterations / 10, exploration);
+		let player = new RandomAI(game);
 		const move = player.selectMove();
 		game.playMove(move);
-		console.log('Preliminary Move Played');
+		//console.log('Preliminary Move Played');
 	}
 
-	console.log('Starting Monte Carlo Tree Search');
+	//console.log('Starting Monte Carlo Tree Search');
 	let player = new MCTS(game, playerNumber, iterations, exploration);
 	const move = player.selectMove();
-	console.log('Monte Carlo Tree Search Finished');
+	//console.log('Monte Carlo Tree Search Finished');
 	return move;
 }
