@@ -38,39 +38,40 @@ function setupTest(context) {
 	console.log('[TEST] Test Suite Started');
 
 	//newTest('Random', p2Strategy, topologyID, 0, expStr);
-	runMultipleTests();
+	//runMultipleTests();
 	//runSimpleGames();
 	//runMonteCarlo();
+	//runDSStrategies();
 }
 
 function runDSStrategies() {
-	let p2Strategy = 'DSHigh';
-	let topologyID = 2;
-	let expStr = 0.4;
+	let p2Strategy = 'DSLow';
+	let topologyID = 1;
+	let expStr = 0.468;
 	newTest('Random', p2Strategy, topologyID, 0, expStr);
-	for (let i = 1; i < 5; i++) {
+	for (let i = 1; i < 10; i++) {
 		setTimeout(() => {
 			newTest('Random', p2Strategy, topologyID, 0, expStr);
 		}, i * 1000);
 	}
 
-	setTimeout(() => {
-		expStr = 0.5;
-		for (let i = 0; i < 5; i++) {
-			setTimeout(() => {
-				newTest('Random', p2Strategy, topologyID, 0, expStr);
-			}, i * 1000);
-		}
-	}, 8000);
+	// setTimeout(() => {
+	// 	expStr = 0.5;
+	// 	for (let i = 0; i < 5; i++) {
+	// 		setTimeout(() => {
+	// 			newTest('Random', p2Strategy, topologyID, 0, expStr);
+	// 		}, i * 1000);
+	// 	}
+	// }, 8000);
 
-	setTimeout(() => {
-		expStr = 0.6;
-		for (let i = 0; i < 5; i++) {
-			setTimeout(() => {
-				newTest('Random', p2Strategy, topologyID, 0, expStr);
-			}, i * 1000);
-		}
-	}, 16000);
+	// setTimeout(() => {
+	// 	expStr = 0.6;
+	// 	for (let i = 0; i < 5; i++) {
+	// 		setTimeout(() => {
+	// 			newTest('Random', p2Strategy, topologyID, 0, expStr);
+	// 		}, i * 1000);
+	// 	}
+	// }, 16000);
 }
 
 function runMultipleTests() {

@@ -1,10 +1,10 @@
 //NOTE: A lot of the human vs human player code is no longer bug-free due to changes in specification. It will work with some moderate changes but NOT as-is.
 
-Server.LocalMode = true; //Run on local machine or internet-facing
+Server.LocalMode = false; //Run on local machine or internet-facing
 Server.NeutralMode = true; //Supports neutral nodes (this is the default now)
 Server.TrialMode = false; //Running controlled trials with people
 Server.ExperimentMode = false; //For things like monte carlo...
-Server.TestMode = true; //For testing AI performance
+Server.TestMode = false; //For testing AI performance
 Server.EnableAWS = false; //Connects to AWS
 Server.NumberOfNodes = 20; //Changing this may require some refactoring...
 Server.RemoveOldNodes = false; //TODO: Update game logic (DB side done)
@@ -16,7 +16,7 @@ Server.TestMoves = [
 ];
 Server.playerTopologies = [];
 Server.LastRoundBonus = 5;
-Server.ExponentStrength = 0.4; // Higher = more bias to high/low degree nodes in their respective strategies
+Server.ExponentStrength = 0.468; // Higher = more bias to high/low degree nodes in their respective strategies
 Server.ExistingTokensBias = 0; //Increases likelihood of placing tokens on nodes that already have tokens. Negative reduces the likelihood.
 Server.MonteCarloIterations = 2000;
 //Only affects degree sensitive strategies. We decided to make this 0 to simplify analysis.
@@ -844,6 +844,18 @@ GameState.prototype.updateClients = function () {
 	var movesToSend = [];
 	var payload = [];
 
+	var p1OwnedPeepIds = [];
+	var p2OwnedPeepIds = [];
+
+	//Records the nodes owned by each player
+	this.formattedPeeps.forEach(function (peep, index) {
+		if (peep[2] == 1) {
+			p1OwnedPeepIds.push(index);
+		} else if (peep[2] == 0) {
+			p2OwnedPeepIds.push(index);
+		}
+	});
+
 	if (this.playerOne !== 'AI' && this.playerOne !== null) {
 		this.formattedPeeps.forEach(function (peep) {
 			peepsToSend.push(peep[2]);
@@ -852,7 +864,13 @@ GameState.prototype.updateClients = function () {
 			movesToSend.push(move);
 		});
 
-		payload = [peepsToSend, movesToSend, this.playerOneScore];
+		payload = [
+			peepsToSend,
+			movesToSend,
+			this.playerOneScore,
+			p1OwnedPeepIds,
+			p2OwnedPeepIds,
+		];
 		Server.sendClientMessage(
 			new Message(payload, 'UPDATE_STATE_TOKEN'),
 			this.playerOne,
@@ -877,7 +895,13 @@ GameState.prototype.updateClients = function () {
 			movesToSend.push(move);
 		});
 
-		payload = [peepsToSend, movesToSend, this.playerTwoScore];
+		payload = [
+			peepsToSend,
+			movesToSend,
+			this.playerTwoScore,
+			p1OwnedPeepIds,
+			p2OwnedPeepIds,
+		];
 		Server.sendClientMessage(
 			new Message(payload, 'UPDATE_STATE_TOKEN'),
 			this.playerTwo,
@@ -1465,13 +1489,27 @@ GameState.prototype.chooseFromDistribution = function (pdfs) {
 	// for logging
 	this.p2SortedPdfInfo = pdfNormsIndex.slice(0).reverse();
 
+	// nodes are picked when their normalised pdf value is nearest to the random number
+	let lowestDifference = Number.MAX_SAFE_INTEGER;
+	let lowestDifferenceNodeIndex = -1;
+
 	for (let i = 0; i < pdfNormsIndex.length; i++) {
-		if (pdfNormsIndex[i].pdfNorm >= rand) {
-			return pdfNormsIndex[i].index;
+		const pdfNorm = pdfNormsIndex[i].pdfNorm;
+		const nodeIndex = pdfNormsIndex[i].index;
+		const difference = Math.abs(pdfNorm - rand);
+
+		// new nearest node
+		if (difference < lowestDifference) {
+			lowestDifference = difference;
+			lowestDifferenceNodeIndex = nodeIndex;
 		}
 	}
-	console.log('ERROR: ChooseFromDistribution failed');
-	return 0;
+	if (lowestDifferenceNodeIndex < 0) {
+		console.log('ERROR: ChooseFromDistribution failed');
+		return 0;
+	} else {
+		return lowestDifferenceNodeIndex;
+	}
 };
 
 //AI strategy that begins random, then does whatever the opponent did last.
