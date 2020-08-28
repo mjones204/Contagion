@@ -72,7 +72,7 @@ function aiTurnMonteCarlo(state, playerNumber, iterations = 2000) {
 	let exploration = 1.41; //exploration vs. explotation parameter, sqrt(2) is reasonable default (c constant in UBC forumula)
 
 	if (playerNumber == 2 && state.p1Moves.length == state.p2Moves.length) {
-		//since we dont have p1's moves yet, we have p1 make a reasonable move before running mcts for player 2
+		//since we dont have p1's moves yet, we have p1 make a random move before running mcts for player 2
 		//console.log('Calculating Preliminary MCTS move');
 		//let player = new MCTS(game, 1, iterations / 10, exploration);
 		let player = new RandomAI(game);

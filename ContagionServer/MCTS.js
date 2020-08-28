@@ -49,9 +49,6 @@ class MCTS {
 			// win
 			else if (this.game.winner() == this.player) {
 				reward = 1;
-				if (score > 2000) {
-					//reward = 2;
-				}
 			}
 			// lost
 			else {
@@ -101,7 +98,7 @@ class MCTS {
 			if (a.wins > b.wins) {
 				return 1;
 			}
-			// a wins must be equal to b wins
+			// a wins equal to b wins
 			// decide by score (vote share)
 			if (a.avg_score < b.avg_score) {
 				return -1;
