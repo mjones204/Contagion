@@ -1,4 +1,5 @@
-const { Game, Player, Graph, Node, Edge, Token } = require('./Classes.js');
+const { Game, Player, Graph, Node, Edge, Token } = require('./Classes');
+const { AI, Strategies } = require('./AI');
 
 const network = {
 	nodes: [0, 1, 2, 3, 4],
@@ -16,24 +17,31 @@ const newGame = () => {
 		new Player({ id: 0, color: 'green' }),
 		new Player({ id: 1, color: 'red' }),
 	];
-	const game = new Game({ players, graph });
-	console.log(game);
-	console.log(game.graph.nodes);
-	game.beginRound();
-	console.log(game.playerVoteShares);
+	const aiStrategy = 'Random';
+	const game = new Game({ players, graph, aiStrategy });
 	const [p1, p2] = game.players;
-	game.playerMove(p1, 0);
-	game.playerMove(p2, 4);
-	game.beginRound();
-	console.log(game.playerVoteShares);
-	game.beginRound();
-	console.log(game.playerVoteShares);
-	game.beginRound();
-	console.log(game.playerVoteShares);
-	game.beginRound();
-	console.log(game.playerVoteShares);
+	const ai = new AI({
+		game,
+		strategy: Strategies.SimpleGreedy,
+		player: p2,
+	});
 	console.log(game);
 	console.log(game.graph.nodes);
+	game.beginRound();
+	game.playerMove(p1, 0);
+	game.playerMove(p2, ai.move({}));
+	game.beginRound();
+	console.log(game.playerVoteShares);
+	game.playerMove(p1, 0);
+	game.playerMove(p2, ai.move({}));
+	game.beginRound();
+	console.log(game.playerVoteShares);
+	game.playerMove(p1, 0);
+	game.playerMove(p2, ai.move({}));
+	game.beginRound();
+	console.log(game.playerVoteShares);
+	//console.log(game);
+	//console.log(game.graph.nodes);
 };
 
 newGame();

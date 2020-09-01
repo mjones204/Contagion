@@ -4,6 +4,7 @@ class Game {
 		graph = null,
 		round = 0,
 		rounds = 10,
+		playerMoves = [],
 		playerScores = [],
 		playerVoteShares = [],
 	}) {
@@ -11,6 +12,7 @@ class Game {
 		this.graph = graph;
 		this.round = round;
 		this.rounds = rounds;
+		this.playerMoves = playerMoves;
 		this.playerScores = playerScores;
 		this.playerVoteShares = playerVoteShares;
 	}
@@ -58,6 +60,14 @@ class Game {
 		// if player has token then place it on the node
 		if (player.hasRemainingTokens()) {
 			player.placeToken(this.graph.getNode(id));
+			// push move to the playerMoves array
+			this.playerMoves.forEach((playerMovesObj) => {
+				if (playerMovesObj.player.id === player.id) {
+					playerMovesObj.moves.push(id);
+				}
+			});
+
+			console.log(`Player ${player.id} placed a token on node ${id}`);
 		} else {
 			console.log(
 				'playerMove() - Cannot make move - Player has no free tokens',
@@ -70,6 +80,11 @@ class Game {
 	}
 
 	initialisePlayerInfo() {
+		// init player moves
+		this.players.forEach((player) => {
+			this.playerMoves.push({ player, moves: [] });
+		});
+
 		// init vote shares
 		this.players.forEach((player) => {
 			this.playerVoteShares.push({ player, voteShares: [] });
@@ -95,6 +110,35 @@ class Game {
 		});
 	}
 
+	getFriendlyInfluencesForNode(node, player) {
+		// variable to count the number of sources of influence for the given player
+		let influenceCount = 0;
+
+		// player owned tokens placed on the node contribute to the count
+		const playerTokens = node.getFixedTokens(player);
+		influenceCount += playerTokens.length;
+
+		// neighbouring controlled (non-neutral) nodes contribute to the count
+		const neighbours = this.graph.getNeighbourNodes(node);
+		neighbours.forEach((neighbour) => {
+			// player controls node
+			if (neighbour.controllingPlayer === player) {
+				influenceCount++;
+			}
+		});
+		return influenceCount;
+	}
+
+	getTotalInfluencesForNode(node) {
+		let totalInfluences = 0;
+		// sums all sources of influence from all players for the given node
+		this.players.forEach((player) => {
+			const influences = this.getFriendlyInfluencesForNode(node, player);
+			totalInfluences += influences;
+		});
+		return totalInfluences;
+	}
+
 	performInfections() {
 		console.log('performInfections() - Round ' + this.round);
 		// contains the influence count for every player for every node
@@ -108,22 +152,11 @@ class Game {
 			};
 			// for all players
 			this.players.forEach((player) => {
-				// variable to count the number of sources of influence for the given player
-				let influenceCount = 0;
-
-				// player owned tokens placed on the node contribute to the count
-
-				const playerTokens = node.getTokens(player);
-				influenceCount += playerTokens.length;
-
-				// neighbouring controlled (non-neutral) nodes contribute to the count
-				const neighbours = this.graph.getNeighbourNodes(node);
-				neighbours.forEach((neighbour) => {
-					// player controls node
-					if (neighbour.controllingPlayer === player) {
-						influenceCount++;
-					}
-				});
+				// number of sources of influence for the given player for the given node
+				const influenceCount = this.getFriendlyInfluencesForNode(
+					node,
+					player,
+				);
 
 				// update counts
 				nodeInfluencesObj.influences.push({ player, influenceCount });
@@ -165,6 +198,19 @@ class Game {
 			}
 			return false;
 		});
+	}
+
+	// will need some adjusting if we decide to use more than 2 players per game
+	getEnemyPlayer(friendlyPlayer) {
+		return this.players.filter(
+			(player) => player.id !== friendlyPlayer.id,
+		)[0];
+	}
+
+	getPlayerMoves(player) {
+		return this.playerMoves.filter(
+			(playerMovesObj) => playerMovesObj.player.id === player.id,
+		)[0].moves;
 	}
 }
 
@@ -292,6 +338,34 @@ class Graph {
 		});
 		return neighbours;
 	}
+
+	getDegree(node) {
+		return getNeighbourNodes(node).length;
+	}
+
+	getHighestDegreeNode() {
+		let highestDegree = -1;
+		let highestDegreeNode = [];
+		this.nodes.forEach((node) => {
+			const nodeDegree = this.getDegree(node);
+			if (nodeDegree === highestDegree) {
+				highestDegreeNode.push(node);
+			} else if (nodeDegree > highestDegree) {
+				highestDegree = nodeDegree;
+				highestDegreeNode = [node];
+			}
+		});
+		// if multiple nodes with highest degree, select node at random
+		return highestDegreeNode[
+			Math.floor(Math.random() * highestDegreeNode.length)
+		];
+	}
+
+	getRandomNode() {
+		//Selects random node from the list of nodes.
+		const nodeIndex = Math.floor(Math.random() * this.nodes.length);
+		return this.getNode(nodeIndex);
+	}
 }
 
 class Node {
@@ -306,18 +380,20 @@ class Node {
 	}
 
 	getTokens(tokenOwner) {
-		const tokens = [];
-		this.tokens.forEach((token) => {
+		return this.tokens.filter((token) => {
 			// filtering by tokenOwner
 			if (tokenOwner) {
-				if (tokenOwner.id === token.owner.id) {
-					tokens.push(token);
-				}
+				return tokenOwner.id === token.owner.id ? true : false;
 			} else {
-				tokens.push(token);
+				return true;
 			}
 		});
-		return tokens;
+	}
+
+	getFixedTokens(tokenOwner) {
+		return this.getTokens(tokenOwner).filter((token) => {
+			return token.isFixed();
+		});
 	}
 
 	setControllingPlayer(player) {
