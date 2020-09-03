@@ -108,6 +108,7 @@ function Simulations() {
 			case 'CONFIG_TOKEN':
 				console.log(message.payload.gameID);
 				Simulations.recievedConfig = message.payload;
+				console.log('CONFIG_TOKEN:', message.payload)
 				break;
 			case 'DEFERRED_STATE_TOKEN':
 				console.log('FIRST Waiting for P2...');

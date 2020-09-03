@@ -1,4 +1,4 @@
-const { Game, Player, Graph, Node, Edge, Token } = require('./Classes');
+const { Game, Player, Graph, Node, Edge, Token } = require('./GameClasses');
 const { AI, Strategies } = require('./AI');
 
 const network = {

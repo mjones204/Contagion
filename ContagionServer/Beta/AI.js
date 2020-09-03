@@ -1,4 +1,3 @@
-const { Game, Player, Graph, Node, Edge, Token } = require('./Classes');
 const { Greedy, GreedyAnticipation } = require('./AI/Greedy');
 const { DegreeSensitive } = require('./AI/DegreeSensitive');
 

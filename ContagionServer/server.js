@@ -1,10 +1,10 @@
 //NOTE: A lot of the human vs human player code is no longer bug-free due to changes in specification. It will work with some moderate changes but NOT as-is.
 
-Server.LocalMode = false; //Run on local machine or internet-facing
+Server.LocalMode = true; //Run on local machine or internet-facing
 Server.NeutralMode = true; //Supports neutral nodes (this is the default now)
 Server.TrialMode = false; //Running controlled trials with people
 Server.ExperimentMode = false; //For things like monte carlo...
-Server.TestMode = false; //For testing AI performance
+Server.TestMode = true; //For testing AI performance
 Server.EnableAWS = false; //Connects to AWS
 Server.NumberOfNodes = 20; //Changing this may require some refactoring...
 Server.RemoveOldNodes = false; //TODO: Update game logic (DB side done)

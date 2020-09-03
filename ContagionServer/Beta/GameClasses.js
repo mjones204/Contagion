@@ -1,5 +1,10 @@
+const uuidv4 = require('uuid/v4');
+const Message = require('./Message');
+const { AI, Strategies } = require('./AI');
+
 class Game {
 	constructor({
+		id = uuidv4(),
 		players = [],
 		graph = null,
 		round = 0,
@@ -7,7 +12,12 @@ class Game {
 		playerMoves = [],
 		playerScores = [],
 		playerVoteShares = [],
+		startTime = Date.now(),
+		lastRoundScoreMultiplier = 5,
+		autoRunAi = true,
+		gameOver = false,
 	}) {
+		this.id = id;
 		this.players = players;
 		this.graph = graph;
 		this.round = round;
@@ -15,8 +25,13 @@ class Game {
 		this.playerMoves = playerMoves;
 		this.playerScores = playerScores;
 		this.playerVoteShares = playerVoteShares;
+		this.startTime = startTime;
+		this.lastRoundScoreMultiplier = lastRoundScoreMultiplier;
+		this.autoRunAi = autoRunAi;
+		this.gameOver = gameOver;
 	}
 
+	// called at the start of every round - progresses the game by infecting nodes, updating scores, etc
 	beginRound() {
 		console.log('beginRound() - Round ' + this.round);
 
@@ -27,20 +42,28 @@ class Game {
 			}),
 		);
 
-		// infections on all rounds except the 0th (game initialisation)
+		// 0th round is for game initialisation
 		if (this.round === 0) {
 			this.initialisePlayerInfo();
-		} else {
+		}
+		// all subsequent rounds run game progression logic
+		else {
 			this.performInfections();
 			this.calculateVoteShares();
+			this.calculateScores();
+			// front-end visualisation
+			this.updateClientsState();
 		}
+		console.log('this.playerScores', this.playerScores);
 
 		// increment round
 		this.round++;
 
 		// round limit reached
 		if (this.round > this.rounds) {
-			this.gameOver();
+			this.gameOver = true;
+			// front-end visualisation
+			this.updateClientsGameOver();
 			return;
 		}
 
@@ -48,8 +71,30 @@ class Game {
 		this.players.forEach((player) =>
 			player.giveTokens(new Token({ owner: player, fixed: false })),
 		);
+
+		// immediately have AI's compute and submit their next move
+		if (this.autoRunAi) {
+			this.runAI();
+		}
 	}
 
+	// get AI's to compute and submit their next move
+	runAI() {
+		this.players.forEach((player) => {
+			// if the player is an AI and has free tokens
+			if (player.isAI && player.hasRemainingTokens()) {
+				const ai = new AI({
+					game: this,
+					strategy: player.aiStrategy,
+					player,
+				});
+				// play the move as suggested by the AI
+				this.playerMove(player, ai.move({}));
+			}
+		});
+	}
+
+	// submit a move for a player (human or AI)
 	playerMove(player, node) {
 		// get id from input (valid input types - nodeId or node obj)
 		let id = node;
@@ -66,8 +111,13 @@ class Game {
 					playerMovesObj.moves.push(id);
 				}
 			});
-
 			console.log(`Player ${player.id} placed a token on node ${id}`);
+
+			// if all players have submitted a move
+			if (this.allPlayersSubmittedMove()) {
+				// progress to next round
+				this.beginRound();
+			}
 		} else {
 			console.log(
 				'playerMove() - Cannot make move - Player has no free tokens',
@@ -75,8 +125,99 @@ class Game {
 		}
 	}
 
-	gameOver() {
-		console.log('Game Over');
+	allPlayersSubmittedMove() {
+		return (
+			this.players.filter((player) => player.hasRemainingTokens())
+				.length === 0
+		);
+	}
+
+	// sends a message to a human client (for front-end visualisation only)
+	sendClientMessage(message, ws) {
+		try {
+			//Needs to be in JSON format to send
+			ws.send(JSON.stringify(message));
+		} catch (err) {
+			console.error('sendClientMessage() ERROR', err);
+		}
+	}
+
+	// sends the updated game state to human players (for front-end visualisation only)
+	// ideally this logic shouldn't be in the game class
+	updateClientsState() {
+		this.players.forEach((player) => {
+			// player is not AI and has a valid websocket connection
+			if (!player.isAI && player.ws !== null) {
+				const payload = this.getUpdateStatePayload(player);
+				this.sendClientMessage(
+					new Message(payload, 'UPDATE_STATE_TOKEN'),
+					player.ws,
+				);
+			}
+		});
+	}
+
+	// sends the game over results to human players (for front-end visualisation only)
+	// ideally this logic shouldn't be in the game class
+	updateClientsGameOver() {
+		this.players.forEach((player) => {
+			// player is not AI and has a valid websocket connection
+			if (!player.isAI && player.ws !== null) {
+				const payload = this.getGameOverPayload(player);
+				this.sendClientMessage(
+					new Message(payload, 'GAME_END_TOKEN'),
+					player.ws,
+				);
+			}
+		});
+	}
+
+	// payload is in legacy format for clients
+	getUpdateStatePayload(player) {
+		const peepsToSend = this.graph.nodes.map((node) =>
+			node.getControlledState(player),
+		);
+		const movesToSend = this.getPlayerMoves(this.getEnemyPlayer(player));
+		const playerScore = this.getPlayerScore(player);
+		const friendlyControlledNodes = this.getNodesControlledByPlayer(
+			player,
+		).map((node) => node.id);
+		const enemyControlledNodes = this.getNodesControlledByEnemies(
+			player,
+		).map((node) => node.id);
+		return [
+			peepsToSend,
+			movesToSend,
+			playerScore,
+			friendlyControlledNodes,
+			enemyControlledNodes,
+		];
+	}
+
+	// payload is in legacy format for clients
+	getGameOverPayload(player) {
+		let result = ''; // win, lose, draw, disconnect, time
+		const winningPlayers = this.getWinningPlayersByScore();
+		if (winningPlayers.some((p) => p.id === player.id)) {
+			if (winningPlayers.length > 1) {
+				// player is drawing
+				result = 'draw';
+			} else {
+				// player is winner
+				result = 'win';
+			}
+		} else {
+			// player is losing
+			result = 'lose';
+		}
+
+		const playerScoreList = this.getPlayerScores(player);
+		const enemyScoreList = this.getPlayerScores(
+			this.getEnemyPlayer(player),
+		);
+		const gameId = this.id;
+		const playerNo = 1; // always 1 because p2 is AI (this might need adjusting if spec changes)
+		return [result, playerScoreList, enemyScoreList, gameId, playerNo];
 	}
 
 	initialisePlayerInfo() {
@@ -85,9 +226,37 @@ class Game {
 			this.playerMoves.push({ player, moves: [] });
 		});
 
-		// init vote shares
+		// init player scores
+		this.players.forEach((player) => {
+			this.playerScores.push({ player, scores: [] });
+		});
+
+		// init player vote shares
 		this.players.forEach((player) => {
 			this.playerVoteShares.push({ player, voteShares: [] });
+		});
+	}
+
+	calculateScores() {
+		// for each player
+		this.players.forEach((player) => {
+			// score is determined by how many nodes the player controls
+			const controlledNodes = this.getNodesControlledByPlayer(player)
+				.length;
+			// 10 points for each node
+			let additionalScore = controlledNodes * 10;
+			// applies multiplier bonus for the final round
+			if (this.round === this.rounds) {
+				additionalScore *= this.lastRoundScoreMultiplier;
+			}
+			const currentScore = this.getPlayerScore(player);
+			const newScore = currentScore + additionalScore;
+			// push new score to the player info array
+			this.playerScores.forEach((playerScore) => {
+				if (playerScore.player.id === player.id) {
+					playerScore.scores.push(newScore);
+				}
+			});
 		});
 	}
 
@@ -200,6 +369,15 @@ class Game {
 		});
 	}
 
+	getNodesControlledByEnemies(friendlyPlayer) {
+		return this.graph.nodes.filter((node) => {
+			if (node.isControlled()) {
+				return node.controllingPlayer.id !== friendlyPlayer.id;
+			}
+			return false;
+		});
+	}
+
 	// will need some adjusting if we decide to use more than 2 players per game
 	getEnemyPlayer(friendlyPlayer) {
 		return this.players.filter(
@@ -212,18 +390,109 @@ class Game {
 			(playerMovesObj) => playerMovesObj.player.id === player.id,
 		)[0].moves;
 	}
+
+	getPlayerScores(player) {
+		return this.playerScores.filter(
+			(playerScoresObj) => playerScoresObj.player.id === player.id,
+		)[0].scores;
+	}
+
+	getPlayerScore(player) {
+		const scores = this.getPlayerScores(player);
+		const lastScore = scores[scores.length - 1];
+		if (lastScore === undefined) {
+			return 0;
+		} else {
+			return lastScore;
+		}
+	}
+
+	getPlayerVoteshares(player) {
+		return this.playerVoteShares.filter(
+			(playerVoteShareObj) => playerVoteShareObj.player.id === player.id,
+		)[0].voteShares;
+	}
+
+	getPlayerVoteShare(player) {
+		const voteShares = this.getPlayerVoteshares(player);
+		const lastVoteShare = voteShares[voteShares.length - 1];
+		if (lastVoteShare === undefined) {
+			return 0;
+		} else {
+			return lastVoteShare;
+		}
+	}
+
+	getPlayerById(playerId) {
+		return this.players.filter((player) => player.id === playerId)[0];
+	}
+
+	getWinningPlayersByScore() {
+		let winningPlayers = [];
+		let highestScore = -1;
+		this.players.forEach((player) => {
+			const playerScore = this.getPlayerScore(player);
+			// new winning player
+			if (playerScore > highestScore) {
+				winningPlayers = [player];
+				highestScore = playerScore;
+			}
+			// draw
+			else if (playerScore === highestScore) {
+				winningPlayers.push(player);
+			}
+		});
+		return winningPlayers;
+	}
+
+	getWinningPlayersByVoteShare() {
+		let winningPlayers = [];
+		let highestVoteShare = -1;
+		this.players.forEach((player) => {
+			const playerVoteShare = this.getPlayerVoteShare(player);
+			// new winning player
+			if (playerVoteShare > highestVoteShare) {
+				winningPlayers = [player];
+				highestVoteShare = playerVoteShare;
+			}
+			// draw
+			else if (playerVoteShare === highestVoteShare) {
+				winningPlayers.push(player);
+			}
+		});
+		return winningPlayers;
+	}
 }
 
 class Player {
-	constructor({ id = 0, color = 'green', freeTokens = [] }) {
+	constructor({
+		id = 0,
+		color = 'green',
+		freeTokens = [],
+		layoutId = 0,
+		ws = null,
+		isAI = true,
+		aiStrategy = Strategies.Random,
+	}) {
 		this.id = id;
 		this.color = color;
 		this.freeTokens = freeTokens;
+		this.isAI = isAI;
+		// AI
+		if (this.isAI) {
+			this.aiStrategy = aiStrategy;
+		}
+		// human player
+		else {
+			this.layoutId = layoutId;
+			this.ws = ws;
+			this.heartbeat = Date.now();
+		}
 	}
 
 	giveTokens(...tokens) {
 		this.freeTokens = [...this.freeTokens, ...tokens];
-		// set owner of tokens to be player
+		// set owner of tokens to be this player
 		this.freeTokens.forEach((token) => token.setOwner(this));
 	}
 
@@ -241,12 +510,17 @@ class Player {
 	hasRemainingTokens() {
 		return this.freeTokens.length > 0;
 	}
+
+	setHeartbeat(time) {
+		this.heartbeat = time;
+	}
 }
 
 class Graph {
-	constructor({ nodes = [], edges = [] }) {
+	constructor({ nodes = [], edges = [], id = 1 }) {
 		this.nodes = [];
 		this.edges = [];
+		this.id = id; // topology id
 
 		nodes.forEach((node) => {
 			// node is a Node instance
@@ -402,6 +676,27 @@ class Node {
 
 	isControlled() {
 		return this.controllingPlayer !== null;
+	}
+
+	isControlledByPlayer(player) {
+		if (!this.isControlled()) {
+			return false;
+		}
+		return player.id === this.controllingPlayer.id;
+	}
+
+	// used by legacy front-end code
+	getControlledState(friendlyPlayer) {
+		if (!this.isControlled()) {
+			// node is neutral
+			return -1;
+		} else if (this.isControlledByPlayer(friendlyPlayer)) {
+			// node is controlled by the given player (friendly node)
+			return 1;
+		} else {
+			// node is controlled by enemy
+			return 0;
+		}
 	}
 }
 
