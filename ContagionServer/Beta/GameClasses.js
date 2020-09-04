@@ -16,6 +16,7 @@ class Game {
 		lastRoundScoreMultiplier = 5,
 		autoRunAi = true,
 		gameOver = false,
+		gameManager = null,
 	}) {
 		this.id = id;
 		this.players = players;
@@ -29,6 +30,11 @@ class Game {
 		this.lastRoundScoreMultiplier = lastRoundScoreMultiplier;
 		this.autoRunAi = autoRunAi;
 		this.gameOver = gameOver;
+		this.gameManager = gameManager;
+	}
+
+	hasGameManager() {
+		return this.gameManager !== null;
 	}
 
 	// called at the start of every round - progresses the game by infecting nodes, updating scores, etc
@@ -52,18 +58,22 @@ class Game {
 			this.calculateVoteShares();
 			this.calculateScores();
 			// front-end visualisation
-			this.updateClientsState();
+			if (this.hasGameManager() && this.gameManager.hasServer()) {
+				this.gameManager.server.updateClientsState(this);
+			}
 		}
 		console.log('this.playerScores', this.playerScores);
 
 		// increment round
 		this.round++;
 
-		// round limit reached
+		// round limit reached - game ending
 		if (this.round > this.rounds) {
 			this.gameOver = true;
 			// front-end visualisation
-			this.updateClientsGameOver();
+			if (this.hasGameManager() && this.gameManager.hasServer()) {
+				this.gameManager.server.updateClientsGameOver(this);
+			}
 			return;
 		}
 
@@ -130,94 +140,6 @@ class Game {
 			this.players.filter((player) => player.hasRemainingTokens())
 				.length === 0
 		);
-	}
-
-	// sends a message to a human client (for front-end visualisation only)
-	sendClientMessage(message, ws) {
-		try {
-			//Needs to be in JSON format to send
-			ws.send(JSON.stringify(message));
-		} catch (err) {
-			console.error('sendClientMessage() ERROR', err);
-		}
-	}
-
-	// sends the updated game state to human players (for front-end visualisation only)
-	// ideally this logic shouldn't be in the game class
-	updateClientsState() {
-		this.players.forEach((player) => {
-			// player is not AI and has a valid websocket connection
-			if (!player.isAI && player.ws !== null) {
-				const payload = this.getUpdateStatePayload(player);
-				this.sendClientMessage(
-					new Message(payload, 'UPDATE_STATE_TOKEN'),
-					player.ws,
-				);
-			}
-		});
-	}
-
-	// sends the game over results to human players (for front-end visualisation only)
-	// ideally this logic shouldn't be in the game class
-	updateClientsGameOver() {
-		this.players.forEach((player) => {
-			// player is not AI and has a valid websocket connection
-			if (!player.isAI && player.ws !== null) {
-				const payload = this.getGameOverPayload(player);
-				this.sendClientMessage(
-					new Message(payload, 'GAME_END_TOKEN'),
-					player.ws,
-				);
-			}
-		});
-	}
-
-	// payload is in legacy format for clients
-	getUpdateStatePayload(player) {
-		const peepsToSend = this.graph.nodes.map((node) =>
-			node.getControlledState(player),
-		);
-		const movesToSend = this.getPlayerMoves(this.getEnemyPlayer(player));
-		const playerScore = this.getPlayerScore(player);
-		const friendlyControlledNodes = this.getNodesControlledByPlayer(
-			player,
-		).map((node) => node.id);
-		const enemyControlledNodes = this.getNodesControlledByEnemies(
-			player,
-		).map((node) => node.id);
-		return [
-			peepsToSend,
-			movesToSend,
-			playerScore,
-			friendlyControlledNodes,
-			enemyControlledNodes,
-		];
-	}
-
-	// payload is in legacy format for clients
-	getGameOverPayload(player) {
-		let result = ''; // win, lose, draw, disconnect, time
-		const winningPlayers = this.getWinningPlayersByScore();
-		if (winningPlayers.some((p) => p.id === player.id)) {
-			if (winningPlayers.length > 1) {
-				// player is drawing
-				result = 'draw';
-			} else {
-				// player is winner
-				result = 'win';
-			}
-		} else {
-			// player is losing
-			result = 'lose';
-		}
-
-		const playerScoreList = this.getPlayerScores(player);
-		const enemyScoreList = this.getPlayerScores(
-			this.getEnemyPlayer(player),
-		);
-		const gameId = this.id;
-		const playerNo = 1; // always 1 because p2 is AI (this might need adjusting if spec changes)
-		return [result, playerScoreList, enemyScoreList, gameId, playerNo];
 	}
 
 	initialisePlayerInfo() {

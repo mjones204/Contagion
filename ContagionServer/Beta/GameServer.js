@@ -7,7 +7,7 @@ const Message = require('./Message');
 
 class GameServer {
 	constructor(port = 5001) {
-		this.gameManager = new GameManager();
+		this.gameManager = new GameManager({ server: this });
 		this.startServer(port);
 		this.games = [];
 	}
@@ -54,10 +54,6 @@ class GameServer {
 			case 'SUBMIT_MOVES_TOKEN':
 				this.submitMove(message.payload, ws);
 				break;
-			case 'EMERGENCY_AI':
-				//Server.AiMode = true;
-				//Server.newGame(message.payload, ws);
-				break;
 			case 'CLICK_TOKEN':
 				this.registerClick(message.payload, ws);
 				break;
@@ -67,7 +63,7 @@ class GameServer {
 		}
 	}
 
-	// sends message to the client
+	// sends message to the client (for front-end visualisation only)
 	sendClientMessage(message, ws) {
 		try {
 			//Needs to be in JSON format to send
@@ -90,8 +86,8 @@ class GameServer {
 		// get the game we just created
 		const game = this.gameManager.getGameByPlayerId(p1Id);
 		if (game !== null) {
-			// generate config to send to client
-			const config = this.gameManager.getClientConfig(game, p1Id);
+			// generate config to send to client (for front-end visualisation only)
+			const config = this.gameManager.getClientConfigPayload(game, p1Id);
 			this.sendClientMessage(new Message(config, 'CONFIG_TOKEN'), ws);
 		}
 		//console.log(game);
@@ -114,6 +110,40 @@ class GameServer {
 		} catch (err) {
 			console.error('registerClick() ERROR', err);
 		}
+	}
+
+	// sends the updated game state to human players (for front-end visualisation only)
+	updateClientsState(game) {
+		game.players.forEach((player) => {
+			// player is not AI and has a valid websocket connection
+			if (!player.isAI && player.ws !== null) {
+				const payload = this.gameManager.getClientUpdateStatePayload(
+					game,
+					player,
+				);
+				this.sendClientMessage(
+					new Message(payload, 'UPDATE_STATE_TOKEN'),
+					player.ws,
+				);
+			}
+		});
+	}
+
+	// sends the game over results to human players (for front-end visualisation only)
+	updateClientsGameOver(game) {
+		game.players.forEach((player) => {
+			// player is not AI and has a valid websocket connection
+			if (!player.isAI && player.ws !== null) {
+				const payload = this.gameManager.getClientGameOverPayload(
+					game,
+					player,
+				);
+				this.sendClientMessage(
+					new Message(payload, 'GAME_END_TOKEN'),
+					player.ws,
+				);
+			}
+		});
 	}
 }
 

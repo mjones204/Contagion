@@ -3,11 +3,16 @@ const { AI, Strategies } = require('./AI');
 const Message = require('./Message');
 
 class GameManager {
-	constructor() {
+	constructor({ server = null }) {
+		this.server = server; // required so that games can request the server to update clients
 		this.activeGames = [];
 		this.topologies = [];
 		this.playerTopologyPerms = [];
 		this.loadTopologies();
+	}
+
+	hasServer() {
+		return this.server !== null;
 	}
 
 	// load topologies from .json files in the Topologies directory
@@ -78,7 +83,12 @@ class GameManager {
 				ws: p2Ws,
 			}),
 		];
-		const game = new Game({ players, graph, topologyId });
+		const game = new Game({
+			players,
+			graph,
+			topologyId,
+			gameManager: this, // required so that games can request the server to update clients
+		});
 		game.beginRound(); // gives players their tokens and inits scores
 		this.activeGames.push(game);
 	}
@@ -121,8 +131,8 @@ class GameManager {
 		});
 	}
 
-	// the client needs the config to be in a particular format
-	getClientConfig(game, playerId) {
+	// the client needs the config to be in a particular format (for front-end visualisation only)
+	getClientConfigPayload(game, playerId) {
 		const player = game.getPlayerById(playerId);
 		const config = {};
 		config.fullscreen = true;
@@ -145,6 +155,54 @@ class GameManager {
 		config.x = 0;
 		config.y = 0;
 		return config;
+	}
+
+	// payload is in legacy format for clients
+	getClientUpdateStatePayload(game, player) {
+		const peepsToSend = game.graph.nodes.map((node) =>
+			node.getControlledState(player),
+		);
+		const movesToSend = game.getPlayerMoves(game.getEnemyPlayer(player));
+		const playerScore = game.getPlayerScore(player);
+		const friendlyControlledNodes = game
+			.getNodesControlledByPlayer(player)
+			.map((node) => node.id);
+		const enemyControlledNodes = game
+			.getNodesControlledByEnemies(player)
+			.map((node) => node.id);
+		return [
+			peepsToSend,
+			movesToSend,
+			playerScore,
+			friendlyControlledNodes,
+			enemyControlledNodes,
+		];
+	}
+
+	// payload is in legacy format for clients
+	getClientGameOverPayload(game, player) {
+		let result = ''; // win, lose, draw, disconnect, time
+		const winningPlayers = game.getWinningPlayersByScore();
+		if (winningPlayers.some((p) => p.id === player.id)) {
+			if (winningPlayers.length > 1) {
+				// player is drawing
+				result = 'draw';
+			} else {
+				// player is winner
+				result = 'win';
+			}
+		} else {
+			// player is losing
+			result = 'lose';
+		}
+
+		const playerScoreList = game.getPlayerScores(player);
+		const enemyScoreList = game.getPlayerScores(
+			game.getEnemyPlayer(player),
+		);
+		const gameId = game.id;
+		const playerNo = 1; // always 1 because p2 is AI (this might need adjusting if spec changes)
+		return [result, playerScoreList, enemyScoreList, gameId, playerNo];
 	}
 
 	registerHeartbeat(ws) {
