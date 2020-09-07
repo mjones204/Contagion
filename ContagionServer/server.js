@@ -2070,7 +2070,7 @@ Server.getRoundInfoForGame = async function (gameID, roundNo) {
 	}
 };
 
-//Gets a completion code from the database and return to client
+//Gets mturk game info from the database and return to client
 Server.sendMTurkInfoToClient = async function (payload, ws) {
 	var username = payload.username;
 	var lastGameID = payload.last_game_id;
