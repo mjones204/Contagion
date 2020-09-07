@@ -2,12 +2,16 @@ const WebSocketServer = require('ws').Server;
 const uuidv4 = require('uuid/v4');
 const http = require('http');
 const express = require('express');
+const { Database } = require('./Database');
 const { GameManager } = require('./GameManager');
+const { MTurkManager } = require('./MTurkManager');
 const Message = require('./Message');
 
 class GameServer {
 	constructor(port = 5001) {
-		this.gameManager = new GameManager({ server: this });
+		const database = new Database();
+		this.gameManager = new GameManager({ server: this, database });
+		this.mturkManager = new MTurkManager({ server: this, database });
 		this.startServer(port);
 		this.games = [];
 	}
@@ -60,6 +64,12 @@ class GameServer {
 			case 'HEARTBEAT':
 				this.registerHeartbeat(ws);
 				break;
+			case 'GET_MTURK_INFO':
+				this.sendMTurkInfo(message.payload, ws);
+				break;
+			case 'NEW_COMPLETION_CODE':
+				this.sendMTurkCompletionCode(message.payload, ws);
+				break;
 		}
 	}
 
@@ -85,9 +95,13 @@ class GameServer {
 		console.log('New Game created with p1Id: ' + p1Id);
 		// get the game we just created
 		const game = this.gameManager.getGameByPlayerId(p1Id);
+		const player = game.getPlayerById(p1Id);
 		if (game !== null) {
 			// generate config to send to client (for front-end visualisation only)
-			const config = this.gameManager.getClientConfigPayload(game, p1Id);
+			const config = this.gameManager.getClientConfigPayload(
+				game,
+				player,
+			);
 			this.sendClientMessage(new Message(config, 'CONFIG_TOKEN'), ws);
 		}
 		//console.log(game);
@@ -144,6 +158,39 @@ class GameServer {
 				);
 			}
 		});
+	}
+
+	// gets mturk reward based on results of all games played by the player
+	async sendMTurkInfo(payload, ws) {
+		const playerId = payload.username;
+		const lastGameID = payload.last_game_id;
+		const mturkInfo = await this.mturkManager.getMTurkInfoForPlayer(
+			playerId,
+			lastGameID,
+		);
+		this.sendClientMessage(new Message(mturkInfo, 'MTURK_INFO'), ws);
+	}
+
+	// gets a completion code from the database and return to client
+	async sendMTurkCompletionCode(payload, ws) {
+		const playerId = payload.toString();
+		const completionCode = await this.mturkManager.getCompletionCodeForPlayer(
+			playerId,
+		);
+		if (completionCode) {
+			this.sendClientMessage(
+				new Message(completionCode, 'COMPLETION_CODE'),
+				ws,
+			);
+		} else {
+			this.sendClientMessage(
+				new Message('', 'COMPLETION_CODE_ERROR'),
+				ws,
+			);
+			console.log(
+				`Error getting completion code for player: ${playerId}`,
+			);
+		}
 	}
 }
 

@@ -35,7 +35,7 @@ class DegreeSensitive {
 		let pdfNormsIndex = pdfNorms.map((pdfNorm, index) => {
 			return {
 				index,
-				degree: this.getDegreeOfNode(index),
+				degree: this.game.graph.getDegree(index),
 				pdf: pdfs[index],
 				pdfNorm,
 			};

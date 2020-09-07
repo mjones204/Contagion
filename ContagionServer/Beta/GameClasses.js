@@ -1,5 +1,4 @@
 const uuidv4 = require('uuid/v4');
-const Message = require('./Message');
 const { AI, Strategies } = require('./AI');
 
 class Game {
@@ -33,13 +32,19 @@ class Game {
 		this.gameManager = gameManager;
 	}
 
+	hasHumanPlayer() {
+		return this.players.some(
+			(player) => !player.isAI && player.ws !== null,
+		);
+	}
+
 	hasGameManager() {
 		return this.gameManager !== null;
 	}
 
 	// called at the start of every round - progresses the game by infecting nodes, updating scores, etc
 	beginRound() {
-		console.log('beginRound() - Round ' + this.round);
+		//console.log('beginRound() - Round ' + this.round);
 
 		// fix all tokens (can no longer be removed by player)
 		this.graph.nodes.forEach((node) =>
@@ -57,12 +62,14 @@ class Game {
 			this.performInfections();
 			this.calculateVoteShares();
 			this.calculateScores();
-			// front-end visualisation
+
+			// front-end visualisation and database
 			if (this.hasGameManager() && this.gameManager.hasServer()) {
 				this.gameManager.server.updateClientsState(this);
+				// database
+				this.gameManager.database.addMoves(this);
 			}
 		}
-		console.log('this.playerScores', this.playerScores);
 
 		// increment round
 		this.round++;
@@ -70,9 +77,9 @@ class Game {
 		// round limit reached - game ending
 		if (this.round > this.rounds) {
 			this.gameOver = true;
-			// front-end visualisation
-			if (this.hasGameManager() && this.gameManager.hasServer()) {
-				this.gameManager.server.updateClientsGameOver(this);
+			// kill game (remove it from active games array) (also triggers front-end visualisation)
+			if (this.hasGameManager()) {
+				this.gameManager.killGame(this, true);
 			}
 			return;
 		}
@@ -114,14 +121,22 @@ class Game {
 
 		// if player has token then place it on the node
 		if (player.hasRemainingTokens()) {
+			// make the move
 			player.placeToken(this.graph.getNode(id));
+			// time in ms since the start of the game
+			let moveTime = Date.now() - this.startTime;
+			// don't record move times for AI
+			if (player.isAI) {
+				moveTime = -1;
+			}
 			// push move to the playerMoves array
 			this.playerMoves.forEach((playerMovesObj) => {
-				if (playerMovesObj.player.id === player.id) {
+				if (playerMovesObj.player === player) {
 					playerMovesObj.moves.push(id);
+					playerMovesObj.times.push(moveTime);
 				}
 			});
-			console.log(`Player ${player.id} placed a token on node ${id}`);
+			//console.log(`Player ${player.id} placed a token on node ${id}`);
 
 			// if all players have submitted a move
 			if (this.allPlayersSubmittedMove()) {
@@ -145,7 +160,7 @@ class Game {
 	initialisePlayerInfo() {
 		// init player moves
 		this.players.forEach((player) => {
-			this.playerMoves.push({ player, moves: [] });
+			this.playerMoves.push({ player, moves: [], times: [] });
 		});
 
 		// init player scores
@@ -163,23 +178,34 @@ class Game {
 		// for each player
 		this.players.forEach((player) => {
 			// score is determined by how many nodes the player controls
-			const controlledNodes = this.getNodesControlledByPlayer(player)
+			const controlledNodesCount = this.getNodesControlledByPlayer(player)
 				.length;
-			// 10 points for each node
-			let additionalScore = controlledNodes * 10;
-			// applies multiplier bonus for the final round
-			if (this.round === this.rounds) {
-				additionalScore *= this.lastRoundScoreMultiplier;
-			}
+			/* we encapsulate the score calc code to getScoreFromNodesControlled() method
+			   to make it easy for other modules (e.g. MTurkManager) to call it */
+			const additionalScore = this.getScoreFromNodesControlled(
+				controlledNodesCount,
+				this.round,
+			);
 			const currentScore = this.getPlayerScore(player);
 			const newScore = currentScore + additionalScore;
 			// push new score to the player info array
 			this.playerScores.forEach((playerScore) => {
-				if (playerScore.player.id === player.id) {
+				if (playerScore.player === player) {
 					playerScore.scores.push(newScore);
 				}
 			});
 		});
+	}
+
+	// gets the score for a single round based on number of nodes controlled
+	getScoreFromNodesControlled(nodesControlled, round) {
+		// 10 points for each node
+		let scoreForRound = nodesControlled * 10;
+		// applies multiplier bonus for the final round
+		if (round === this.rounds) {
+			scoreForRound *= this.lastRoundScoreMultiplier;
+		}
+		return scoreForRound;
 	}
 
 	calculateVoteShares() {
@@ -194,7 +220,7 @@ class Game {
 			const voteShare = controlledNodes / totalControlledNodes;
 			// push vote share to the player info array
 			this.playerVoteShares.forEach((playerVoteShare) => {
-				if (playerVoteShare.player.id === player.id) {
+				if (playerVoteShare.player === player) {
 					playerVoteShare.voteShares.push(voteShare);
 				}
 			});
@@ -231,7 +257,11 @@ class Game {
 	}
 
 	performInfections() {
-		console.log('performInfections() - Round ' + this.round);
+		// used to determine flipped nodes - for use in database only
+		const [p1] = this.players; // always from p1 perspective
+		const prevNodeStates = this.getNodeStateArray(p1);
+
+		//console.log('performInfections() - Round ' + this.round);
 		// contains the influence count for every player for every node
 		const nodeInfluences = [];
 		// for every node, infection probability depends on sources of influence (controlled neighbours and tokens)
@@ -280,12 +310,41 @@ class Game {
 				}
 			}
 		});
+
+		// used to determine flipped nodes - for use in database only
+		const newNodeStates = this.getNodeStateArray(p1);
+		this.calculateFlippedNodes(prevNodeStates, newNodeStates);
+	}
+
+	// used for observing when a node's state changes - e.g. for calculating flipped nodes
+	getNodeStateArray(player) {
+		return this.graph.nodes.map((node) => node.getControlledState(player));
+	}
+
+	// calculate flipped nodes (nodes that change their state after infections are performed) - for use in database only
+	calculateFlippedNodes(prevNodeStates, newNodeStates) {
+		// flipped nodes are always from perspective of p1 - if p1 owns the node (state is 1) a 'p' is appended
+		this.flippedNodes = [];
+		prevNodeStates.forEach((prevState, index) => {
+			const newState = newNodeStates[index];
+			// node has changed state (flipped)
+			if (prevState !== newState) {
+				let nodeStr = '' + index;
+				// node is owned by friendly player (p1)
+				if (newState === 1) {
+					// append a 'p'
+					nodeStr += 'p';
+				}
+				// add flipped node
+				this.flippedNodes.push(nodeStr);
+			}
+		});
 	}
 
 	getNodesControlledByPlayer(player) {
 		return this.graph.nodes.filter((node) => {
 			if (node.isControlled()) {
-				return node.controllingPlayer.id === player.id;
+				return node.controllingPlayer === player;
 			}
 			return false;
 		});
@@ -294,7 +353,7 @@ class Game {
 	getNodesControlledByEnemies(friendlyPlayer) {
 		return this.graph.nodes.filter((node) => {
 			if (node.isControlled()) {
-				return node.controllingPlayer.id !== friendlyPlayer.id;
+				return node.controllingPlayer !== friendlyPlayer;
 			}
 			return false;
 		});
@@ -302,20 +361,44 @@ class Game {
 
 	// will need some adjusting if we decide to use more than 2 players per game
 	getEnemyPlayer(friendlyPlayer) {
-		return this.players.filter(
-			(player) => player.id !== friendlyPlayer.id,
-		)[0];
+		return this.players.filter((player) => player !== friendlyPlayer)[0];
 	}
 
 	getPlayerMoves(player) {
 		return this.playerMoves.filter(
-			(playerMovesObj) => playerMovesObj.player.id === player.id,
+			(playerMovesObj) => playerMovesObj.player === player,
 		)[0].moves;
+	}
+
+	getPlayerLastMove(player) {
+		const moves = this.getPlayerMoves(player);
+		const lastMove = moves[moves.length - 1];
+		if (lastMove === undefined) {
+			return null;
+		} else {
+			return lastMove;
+		}
+	}
+
+	getPlayerMoveTimes(player) {
+		return this.playerMoves.filter(
+			(playerMovesObj) => playerMovesObj.player === player,
+		)[0].times;
+	}
+
+	getPlayerLastMoveTime(player) {
+		const times = this.getPlayerMoveTimes(player);
+		const lastTime = times[times.length - 1];
+		if (lastTime === undefined) {
+			return -1;
+		} else {
+			return lastTime;
+		}
 	}
 
 	getPlayerScores(player) {
 		return this.playerScores.filter(
-			(playerScoresObj) => playerScoresObj.player.id === player.id,
+			(playerScoresObj) => playerScoresObj.player === player,
 		)[0].scores;
 	}
 
@@ -331,7 +414,7 @@ class Game {
 
 	getPlayerVoteshares(player) {
 		return this.playerVoteShares.filter(
-			(playerVoteShareObj) => playerVoteShareObj.player.id === player.id,
+			(playerVoteShareObj) => playerVoteShareObj.player === player,
 		)[0].voteShares;
 	}
 
@@ -384,21 +467,40 @@ class Game {
 		});
 		return winningPlayers;
 	}
+
+	isDrawByVoteShare() {
+		return this.getWinningPlayersByVoteShare().length > 1;
+	}
+
+	isDrawByScore() {
+		return this.getWinningPlayersByScore().length > 1;
+	}
+
+	isWinningPlayerByVoteShare(player) {
+		return this.getWinningPlayersByVoteShare().some((p) => p === player);
+	}
+
+	isWinningPlayerByScore(player) {
+		return this.getWinningPlayersByScore().some((p) => p === player);
+	}
 }
 
 class Player {
 	constructor({
-		id = 0,
-		color = 'green',
+		id = 0, // unique identifier for the player
+		number = 1, // either 1 or 2 (for 2 player games)
+		color = 'green', // color of the player (not used anywhere currently)
 		freeTokens = [],
-		layoutId = 0,
-		ws = null,
-		isAI = true,
-		aiStrategy = Strategies.Random,
+		layoutId = 0, // layout index in the topology - usually 0 or 1
+		ws = null, // websocket so that the server can send messages to the player
+		isAI = true, // is an AI player - false if the player is human
+		aiStrategy = Strategies.Random, // strategy for the AI
 	}) {
 		this.id = id;
+		this.number = number;
 		this.color = color;
 		this.freeTokens = freeTokens;
+		this.layoutId = layoutId;
 		this.isAI = isAI;
 		// AI
 		if (this.isAI) {
@@ -406,7 +508,6 @@ class Player {
 		}
 		// human player
 		else {
-			this.layoutId = layoutId;
 			this.ws = ws;
 			this.heartbeat = Date.now();
 		}
@@ -536,7 +637,7 @@ class Graph {
 	}
 
 	getDegree(node) {
-		return getNeighbourNodes(node).length;
+		return this.getNeighbourNodes(node).length;
 	}
 
 	getHighestDegreeNode() {
@@ -579,7 +680,7 @@ class Node {
 		return this.tokens.filter((token) => {
 			// filtering by tokenOwner
 			if (tokenOwner) {
-				return tokenOwner.id === token.owner.id ? true : false;
+				return tokenOwner === token.owner ? true : false;
 			} else {
 				return true;
 			}
@@ -604,7 +705,7 @@ class Node {
 		if (!this.isControlled()) {
 			return false;
 		}
-		return player.id === this.controllingPlayer.id;
+		return player === this.controllingPlayer;
 	}
 
 	// used by legacy front-end code

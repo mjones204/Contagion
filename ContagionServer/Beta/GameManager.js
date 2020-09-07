@@ -1,14 +1,21 @@
 const { Game, Player, Graph } = require('./GameClasses');
 const { AI, Strategies } = require('./AI');
+const { Database } = require('./Database');
 const Message = require('./Message');
 
 class GameManager {
-	constructor({ server = null }) {
+	constructor({ server = null, database = null }) {
 		this.server = server; // required so that games can request the server to update clients
 		this.activeGames = [];
 		this.topologies = [];
 		this.playerTopologyPerms = [];
 		this.loadTopologies();
+		this.database = database;
+
+		// create a new database connection if one is not provided
+		if (this.database === null) {
+			this.database = new Database();
+		}
 	}
 
 	hasServer() {
@@ -68,6 +75,7 @@ class GameManager {
 		const players = [
 			new Player({
 				id: p1Id,
+				number: 1,
 				color: 'green',
 				layoutId,
 				isAI: p1Ai,
@@ -76,6 +84,7 @@ class GameManager {
 			}),
 			new Player({
 				id: p2Id,
+				number: 2,
 				color: 'red',
 				layoutId,
 				isAI: p2Ai,
@@ -91,6 +100,11 @@ class GameManager {
 		});
 		game.beginRound(); // gives players their tokens and inits scores
 		this.activeGames.push(game);
+
+		// add game to database
+		this.database.addGame(game);
+
+		return game;
 	}
 
 	killGamesByPlayerId(id) {
@@ -106,10 +120,15 @@ class GameManager {
 	}
 
 	killGame(game, naturalEnd) {
-		// send msg to players informing them of game end
-		// naturalEnd is true when the game ends by reaching the max number of rounds
 		if (naturalEnd) {
-			// send win / lose
+			// game reached max number of rounds
+			// send msg to players informing them of game end
+			if (this.hasServer()) {
+				this.server.updateClientsGameOver(game);
+			}
+		} else {
+			// disconnected or new game started by existing player
+			// ideally we should notify players here
 		}
 		// remove game from active games
 		const index = this.activeGames.indexOf(game);
@@ -132,8 +151,7 @@ class GameManager {
 	}
 
 	// the client needs the config to be in a particular format (for front-end visualisation only)
-	getClientConfigPayload(game, playerId) {
-		const player = game.getPlayerById(playerId);
+	getClientConfigPayload(game, player) {
 		const config = {};
 		config.fullscreen = true;
 		// maxConnections is the number of tokens the player is allowed to place per round
@@ -183,7 +201,7 @@ class GameManager {
 	getClientGameOverPayload(game, player) {
 		let result = ''; // win, lose, draw, disconnect, time
 		const winningPlayers = game.getWinningPlayersByScore();
-		if (winningPlayers.some((p) => p.id === player.id)) {
+		if (winningPlayers.some((p) => p === player)) {
 			if (winningPlayers.length > 1) {
 				// player is drawing
 				result = 'draw';
@@ -218,9 +236,22 @@ class GameManager {
 	registerClick(nodeId, action, ws) {
 		const game = this.getGameByPlayerId(ws.id);
 		if (game !== null) {
-			console.log(`registerClick(nodeId: ${nodeId}, action: ${action})`);
-			// milliseconds since game start
-			const timestamp = Date.now() - game.startTime;
+			const player = game.getPlayerById(ws.id);
+			if (player) {
+				console.log(
+					`registerClick(nodeId: ${nodeId}, action: ${action})`,
+				);
+				// milliseconds since game start
+				const timestamp = Date.now() - game.startTime;
+				// add to database
+				this.database.addClick(
+					game,
+					player.number,
+					nodeId,
+					action,
+					timestamp,
+				);
+			}
 		}
 	}
 
