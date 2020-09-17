@@ -11,7 +11,7 @@ class Greedy {
 		this.anticipation = anticipation;
 	}
 
-	aiSimpleGreedy(lookahead = 1) {
+	getMove(lookahead = 1) {
 		let enemyAnticipationNode = null;
 
 		// enemy move anticipation
@@ -31,6 +31,7 @@ class Greedy {
 				lookahead,
 			);
 		}
+		// return id of the selected node (this is the move the AI plays)
 		return this.greedyNodeSelection(enemyAnticipationNode, lookahead).id;
 	}
 

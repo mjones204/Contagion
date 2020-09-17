@@ -8,7 +8,7 @@ class DegreeSensitive {
 		}
 	}
 
-	aiDegreeSensitive() {
+	getMove() {
 		// probability distribution functions
 		const pdfs = [];
 		this.game.graph.nodes.forEach((node) => {
