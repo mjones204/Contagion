@@ -5,7 +5,8 @@
 	"main": "ContagionServer/server.js",
 	"scripts": {
 		"start": "node ContagionServer/server.js",
-		"test": "echo \"Error: no test specified\" && exit 1"
+		"beta": "node ContagionServer/Beta/Server.js",
+		"test": "node ContagionServer/Beta/Tester.js"
 	},
 	"repository": {
 		"type": "git",
@@ -29,6 +30,7 @@
 		"csvtojson": "^2.0.8",
 		"express": "^4.17.1",
 		"http": "0.0.0",
+		"mathjs": "^7.2.0",
 		"mysql": "^2.16.0",
 		"nodemailer": "^4.6.8",
 		"pg": "^7.4.3",
