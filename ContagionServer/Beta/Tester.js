@@ -16,7 +16,7 @@ const start = () => {
 	const testManager = new TestManager();
 	testManager.runMultipleGameTest(
 		Strategies.Random,
-		Strategies.GreedyPredictsHigh,
+		Strategies.Equilibrium,
 		10000,
 	);
 };

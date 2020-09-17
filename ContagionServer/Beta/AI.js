@@ -1,5 +1,6 @@
 const { Greedy, GreedyAnticipation } = require('./AI/Greedy');
 const { DegreeSensitive } = require('./AI/DegreeSensitive');
+const { Equilibirum } = require('./AI/Equilibrium');
 
 const Strategies = {
 	Random: 'Random',
@@ -9,6 +10,7 @@ const Strategies = {
 	DSLow: 'DSLow',
 	DSHigh: 'DSHigh',
 	Mirror: 'Mirror',
+	Equilibrium: 'Equilibrium',
 };
 
 class AI {
@@ -59,6 +61,8 @@ class AI {
 				return this.aiDegreeSensitive(true);
 			case Strategies.DSHigh:
 				return this.aiDegreeSensitive(false);
+			case Strategies.Equilibrium:
+				return this.aiEquilibrium();
 			default:
 				return this.aiRandom();
 		}
@@ -87,7 +91,7 @@ class AI {
 			player: this.player,
 			anticipation,
 		});
-		return greedy.aiSimpleGreedy();
+		return greedy.getMove();
 	}
 
 	aiDegreeSensitive(lowDegree) {
@@ -95,7 +99,15 @@ class AI {
 			game: this.game,
 			lowDegree,
 		});
-		return degreeSensitive.aiDegreeSensitive();
+		return degreeSensitive.getMove();
+	}
+
+	aiEquilibrium() {
+		const equilibrium = new Equilibirum({
+			game: this.game,
+			player: this.player,
+		});
+		return equilibrium.getMove();
 	}
 }
 
