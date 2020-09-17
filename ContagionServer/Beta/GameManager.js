@@ -24,14 +24,17 @@ class GameManager {
 
 	// load topologies from .json files in the Topologies directory
 	loadTopologies() {
-		const dir = './Topologies/';
 		const fs = require('fs');
+		const path = require('path');
+		// files are located in the Topologies folder
+		const dirPath = path.join(__dirname, '/Topologies/');
+
 		const files = fs
-			.readdirSync(dir)
+			.readdirSync(dirPath)
 			.filter((file) => file.endsWith('.json'));
 		// store topologies in this.topologies array
 		files.forEach((file) => {
-			const topology = require(dir + file);
+			const topology = require(dirPath + file);
 			// set topology.id as the filename
 			topology.id = file.replace('.json', '');
 			this.topologies.push(topology);
