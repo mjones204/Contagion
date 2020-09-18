@@ -14,11 +14,7 @@ const network = {
 
 const start = () => {
 	const testManager = new TestManager();
-	testManager.runMultipleGameTest(
-		Strategies.Random,
-		Strategies.Equilibrium,
-		10000,
-	);
+	testManager.runAllMultipleGameTests(10000);
 };
 
 start();
