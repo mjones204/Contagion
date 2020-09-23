@@ -6,12 +6,17 @@ const path = require('path');
 // array of multiple game test results (strategy vs strategy)
 const multipleGameTestResultsPath =
 	'./Public/data/multipleGameTestResults.json';
-const multipleGameTestResults = require(multipleGameTestResultsPath);
 
 class TestManager {
 	constructor() {
 		this.gm = new GameManager({});
 		console.log('Test Manager Started');
+	}
+
+	readJsonFile(filePath) {
+		const fullPath = path.join(__dirname, filePath);
+		const data = fs.readFileSync(fullPath);
+		return JSON.parse(data);
 	}
 
 	writeJsonToFile(json, filePath) {
@@ -21,9 +26,11 @@ class TestManager {
 	}
 
 	// runs all AI vs AI permutations
-	runAllMultipleGameTests(gamesToRun = 1000) {
-		const results = [];
-
+	runAllMultipleGameTests({
+		testAllStrategies = true,
+		testStrategies = [],
+		gamesToRun = 1000,
+	}) {
 		// keep pairs array so we dont run duplicate matchups
 		const pairs = [];
 		const pairExists = (s1, s2) => {
@@ -41,38 +48,55 @@ class TestManager {
 
 		// run each AI strategy against the others - ignore duplicates
 		for (const [key1, strategy1] of Object.entries(Strategies)) {
-			for (const [key2, strategy2] of Object.entries(Strategies)) {
-				// is pair does not exist then the strategy vs strategy matchup has not yet been run
-				if (!pairExists(strategy1, strategy2)) {
-					// add strategy to pairs array
-					pairs.push([strategy1, strategy2]);
-					// run test
-					const result = this.runMultipleGameTest(
-						strategy1,
-						strategy2,
-						gamesToRun,
-					);
-					// save results
-					results.push(result);
-
-					//  write to file
-					// ignore old test results if we have new ones
-					const oldResults = multipleGameTestResults.filter(
-						(oldRes) =>
-							!results.some(
-								(res) => res.testName === oldRes.testName,
-							),
-					);
-					// concat old and new results arrays
-					const allResults = [...oldResults, ...results];
-					// write results to file
-					this.writeJsonToFile(
-						allResults,
-						multipleGameTestResultsPath,
-					);
+			let proceed = true;
+			// not testing all strategies
+			if (!testAllStrategies) {
+				proceed = false;
+				// only test strategies listed in testStrategies
+				if (testStrategies.includes(strategy1)) {
+					// strategy is listed so proceed with test
+					proceed = true;
+				}
+			}
+			if (proceed) {
+				for (const [key2, strategy2] of Object.entries(Strategies)) {
+					// is pair does not exist then the strategy vs strategy matchup has not yet been run
+					if (!pairExists(strategy1, strategy2)) {
+						// add strategy to pairs array
+						pairs.push([strategy1, strategy2]);
+						// run test and write result to json
+						this.runMultipleGameTestAndWriteToFile(
+							strategy1,
+							strategy2,
+							gamesToRun,
+						);
+					}
 				}
 			}
 		}
+	}
+
+	runMultipleGameTestAndWriteToFile(p1AiStrategy, p2AiStrategy, gamesToRun) {
+		// run test
+		const result = this.runMultipleGameTest(
+			p1AiStrategy,
+			p2AiStrategy,
+			gamesToRun,
+		);
+		// save test result in new array
+		const results = [result];
+
+		// reload existing results
+		const existingResults = this.readJsonFile(multipleGameTestResultsPath);
+		// ignore old test result if we have a new one
+		const oldResults = existingResults.filter(
+			(oldRes) =>
+				!results.some((res) => res.testName === oldRes.testName),
+		);
+		// concat old and new results arrays
+		const allResults = [...oldResults, ...results];
+		// write results to file
+		this.writeJsonToFile(allResults, multipleGameTestResultsPath);
 	}
 
 	runMultipleGameTest(p1AiStrategy, p2AiStrategy, gamesToRun = 1000) {

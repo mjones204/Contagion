@@ -11,6 +11,7 @@ const Strategies = {
 	DSHigh: 'DSHigh',
 	Mirror: 'Mirror',
 	Equilibrium: 'Equilibrium',
+	HighGreedy: 'HighGreedy',
 };
 
 class AI {
@@ -63,6 +64,8 @@ class AI {
 				return this.aiDegreeSensitive(false);
 			case Strategies.Equilibrium:
 				return this.aiEquilibrium();
+			case Strategies.HighGreedy:
+				return this.aiHighGreedy();
 			default:
 				return this.aiRandom();
 		}
@@ -92,6 +95,19 @@ class AI {
 			anticipation,
 		});
 		return greedy.getMove();
+	}
+
+	aiHighGreedy() {
+		// no neutral nodes in the network (all nodes are controlled by players)
+		if (this.game.allNodesAreControlled()) {
+			// play greedy strategy
+			return this.aiGreedy(GreedyAnticipation.None);
+		}
+		// there are still neutral nodes in the network
+		else {
+			// play high degree strategy
+			return this.aiDegreeSensitive(false);
+		}
 	}
 
 	aiDegreeSensitive(lowDegree) {

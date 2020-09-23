@@ -227,6 +227,11 @@ class Game {
 		});
 	}
 
+	// boolean for whether neutral nodes (nodes that aren't controlled by a player) exist in the graph
+	allNodesAreControlled() {
+		return !this.graph.nodes.some((node) => !node.isControlled());
+	}
+
 	getFriendlyInfluencesForNode(node, player) {
 		// variable to count the number of sources of influence for the given player
 		let influenceCount = 0;
@@ -711,7 +716,7 @@ class Node {
 	// used by legacy front-end code
 	getControlledState(friendlyPlayer) {
 		if (!this.isControlled()) {
-			// node is neutral
+			// node is not controlled (neutral)
 			return -1;
 		} else if (this.isControlledByPlayer(friendlyPlayer)) {
 			// node is controlled by the given player (friendly node)
