@@ -1,5 +1,5 @@
 const uuidv4 = require('uuid/v4');
-const { AI, Strategies } = require('./AI');
+const { AI, Strategies } = require('./AI/AI');
 
 class Game {
 	constructor({

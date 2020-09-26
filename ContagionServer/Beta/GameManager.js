@@ -1,5 +1,5 @@
 const { Game, Player, Graph } = require('./GameClasses');
-const { AI, Strategies } = require('./AI');
+const { AI, Strategies } = require('./AI/AI');
 const { Database } = require('./Database');
 const Message = require('./Message');
 

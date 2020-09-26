@@ -1,6 +1,6 @@
-const { Greedy, GreedyAnticipation } = require('./AI/Greedy');
-const { DegreeSensitive } = require('./AI/DegreeSensitive');
-const { Equilibirum } = require('./AI/Equilibrium');
+const { Greedy, GreedyAnticipation } = require('./Greedy');
+const { DegreeSensitive } = require('./DegreeSensitive');
+const { Equilibirum } = require('./Equilibrium');
 
 const Strategies = {
 	Random: 'Random',
