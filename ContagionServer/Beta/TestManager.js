@@ -1,5 +1,5 @@
 const { GameManager } = require('./GameManager');
-const { Strategies } = require('./AI');
+const { Strategies } = require('./AI/AI');
 const fs = require('fs');
 const path = require('path');
 

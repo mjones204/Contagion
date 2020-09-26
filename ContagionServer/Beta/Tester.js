@@ -1,5 +1,5 @@
 const { TestManager } = require('./TestManager');
-const { Strategies } = require('./AI');
+const { Strategies } = require('./AI/AI');
 // const network = {
 // 	nodes: [0, 1, 2, 3, 4],
 // 	edges: [
@@ -13,6 +13,21 @@ const { Strategies } = require('./AI');
 const start = () => {
 	const testManager = new TestManager();
 	//testManager.runAllMultipleGameTests(10000);
+	testManager.runAllMultipleGameTests({
+		testAllStrategies: false,
+		testStrategies: [Strategies.SimpleGreedy],
+		gamesToRun: 10000,
+	});
+	testManager.runAllMultipleGameTests({
+		testAllStrategies: false,
+		testStrategies: [Strategies.GreedyPredictsHigh],
+		gamesToRun: 10000,
+	});
+	testManager.runAllMultipleGameTests({
+		testAllStrategies: false,
+		testStrategies: [Strategies.GreedyPredictsGreedy],
+		gamesToRun: 10000,
+	});
 	testManager.runAllMultipleGameTests({
 		testAllStrategies: false,
 		testStrategies: [Strategies.HighGreedy],

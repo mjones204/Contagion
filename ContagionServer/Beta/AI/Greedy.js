@@ -11,7 +11,7 @@ class Greedy {
 		this.anticipation = anticipation;
 	}
 
-	getMove(lookahead = 1) {
+	getMove() {
 		let enemyAnticipationNode = null;
 
 		// enemy move anticipation
@@ -26,16 +26,13 @@ class Greedy {
 				player: this.game.getEnemyPlayer(this.player),
 				anticipation: GreedyAnticipation.None,
 			});
-			enemyAnticipationNode = enemyGreedy.greedyNodeSelection(
-				null,
-				lookahead,
-			);
+			enemyAnticipationNode = enemyGreedy.greedyNodeSelection(null);
 		}
 		// return id of the selected node (this is the move the AI plays)
-		return this.greedyNodeSelection(enemyAnticipationNode, lookahead).id;
+		return this.greedyNodeSelection(enemyAnticipationNode).id;
 	}
 
-	greedyNodeSelection(enemyAnticipationNode, lookahead) {
+	greedyNodeSelection(enemyAnticipationNode) {
 		const nodeControlProbabilities = [];
 		// for each node we add a temporary token (source of influence)
 		this.game.graph.nodes.forEach((tokenNode) => {
@@ -76,7 +73,7 @@ class Greedy {
 
 		const bestNode = this.getNodeWithHighestControlProbabilities(
 			nodeControlProbabilities,
-			lookahead,
+			enemyAnticipationNode,
 		);
 		return bestNode;
 	}
@@ -91,9 +88,57 @@ class Greedy {
 		return array;
 	}
 
+	getLookaheadProbabilities(
+		controlProbabilities,
+		tokenNode,
+		enemyAnticipationNode,
+	) {
+		const lookaheadProbabilities = [];
+		this.game.graph.nodes.forEach((node) => {
+			const neighbourNodes = this.game.graph.getNeighbourNodes(node); // all neighbours nodes (includes neutral nodes)
+			let friendlyInfluenceProbSum = 0;
+			neighbourNodes.forEach((neighbour) => {
+				// friendly control probability for the neighbouring nodes
+				const contProb = controlProbabilities[neighbour.id];
+				friendlyInfluenceProbSum += contProb;
+			});
+
+			// consider tokens on the node
+			let friendlyTokens = node.getFixedTokens(this.player).length;
+			let enemyTokens = node.getFixedTokens(
+				this.game.getEnemyPlayer(this.player),
+			).length;
+
+			// we have added a temporary token to this node
+			if (node === tokenNode) {
+				friendlyTokens++;
+			}
+			// anticipating that the enemy has placed a token on this node
+			if (
+				enemyAnticipationNode !== null &&
+				enemyAnticipationNode.id === node.id
+			) {
+				enemyTokens++;
+			}
+
+			// add token probabilities to friendly control probability sum for node
+			// each token is a source of influence with 100% friendly control (so 1 probability)
+			friendlyInfluenceProbSum += friendlyTokens * 1;
+
+			let totalInfluences =
+				neighbourNodes.length + friendlyTokens + enemyTokens;
+			let controlProbability = 0;
+			if (totalInfluences > 0) {
+				controlProbability = friendlyInfluenceProbSum / totalInfluences;
+			}
+			lookaheadProbabilities.push(controlProbability);
+		});
+		return lookaheadProbabilities;
+	}
+
 	getNodeWithHighestControlProbabilities(
 		nodeControlProbabilities,
-		lookahead = 1,
+		enemyAnticipationNode,
 	) {
 		// shuffle order so that tied nodes are picked at random
 		nodeControlProbabilities = this.shuffleArray(nodeControlProbabilities);
@@ -101,10 +146,26 @@ class Greedy {
 		let highestAvg = -1;
 		let bestNode = null;
 		nodeControlProbabilities.forEach(({ node, controlProbabilities }) => {
+			// at the start we have control probabilities for the next round (current round + 1)
+			let projectedRound = this.game.round + 1;
+			// lookahead further up to round 11 (end of the game) (we play the 10th round)
+			projectedRound++;
+			while (projectedRound <= this.game.rounds + 1) {
+				// for each node (the node which the token was placed), assign the calculated control probabilities to each node in the network
+				const lookaheadProbabilities = this.getLookaheadProbabilities(
+					controlProbabilities,
+					node,
+					enemyAnticipationNode,
+				);
+				// set the controlProbabilities to the lookahead probabilities
+				controlProbabilities = lookaheadProbabilities;
+				// next round
+				projectedRound++;
+			}
+
 			let probabilitySum = 0;
 			controlProbabilities.forEach((probability) => {
-				// e.g. a round lookahead of 2 squares the probability
-				probabilitySum += Math.pow(probability, lookahead);
+				probabilitySum += probability;
 			});
 			const avg = probabilitySum / controlProbabilities.length;
 			if (avg > highestAvg) {
