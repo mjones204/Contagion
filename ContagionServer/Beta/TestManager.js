@@ -13,6 +13,31 @@ class TestManager {
 		console.log('Test Manager Started');
 	}
 
+	pruneMultipleGameTestArrayKeepingLatestResults() {
+		const d = this.readJsonFile(multipleGameTestResultsPath);
+		//const data = d.filter((obj) => !obj.testName.includes('HighGreedy'));
+		const noDuplicates = [];
+		data.reverse();
+		data.forEach((obj) => {
+			if (
+				!noDuplicates.some((n) => {
+					if (
+						(n.p1Strategy === obj.p1Strategy &&
+							n.p2Strategy === obj.p2Strategy) ||
+						(n.p2Strategy === obj.p1Strategy &&
+							n.p1Strategy === obj.p2Strategy)
+					) {
+						return true;
+					}
+					return false;
+				})
+			) {
+				noDuplicates.push(obj);
+			}
+		});
+		this.writeJsonToFile(noDuplicates, multipleGameTestResultsPath);
+	}
+
 	readJsonFile(filePath) {
 		const fullPath = path.join(__dirname, filePath);
 		const data = fs.readFileSync(fullPath);

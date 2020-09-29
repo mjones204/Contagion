@@ -13,26 +13,27 @@ const { Strategies } = require('./AI/AI');
 const start = () => {
 	const testManager = new TestManager();
 	//testManager.runAllMultipleGameTests(10000);
-	testManager.runAllMultipleGameTests({
-		testAllStrategies: false,
-		testStrategies: [Strategies.SimpleGreedy],
-		gamesToRun: 10000,
-	});
+	// testManager.runAllMultipleGameTests({
+	// 	testAllStrategies: false,
+	// 	testStrategies: [Strategies.SimpleGreedy],
+	// 	gamesToRun: 10000,
+	// });
 	testManager.runAllMultipleGameTests({
 		testAllStrategies: false,
 		testStrategies: [Strategies.GreedyPredictsHigh],
 		gamesToRun: 10000,
 	});
-	testManager.runAllMultipleGameTests({
-		testAllStrategies: false,
-		testStrategies: [Strategies.GreedyPredictsGreedy],
-		gamesToRun: 10000,
-	});
-	testManager.runAllMultipleGameTests({
-		testAllStrategies: false,
-		testStrategies: [Strategies.HighGreedy],
-		gamesToRun: 10000,
-	});
+	// testManager.runAllMultipleGameTests({
+	// 	testAllStrategies: false,
+	// 	testStrategies: [Strategies.GreedyPredictsGreedy],
+	// 	gamesToRun: 10000,
+	// });
+};
+
+const temp = () => {
+	const testManager = new TestManager();
+	testManager.pruneMultipleGameTestArrayKeepingLatestResults();
 };
 
 start();
+//temp();

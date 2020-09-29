@@ -17,7 +17,15 @@ class Greedy {
 		// enemy move anticipation
 		if (this.anticipation === GreedyAnticipation.High) {
 			// anticipating enemy to pick high degree nodes
-			enemyAnticipationNode = this.game.graph.getHighestDegreeNode();
+			// create a new high degree AI to pick the node
+			const { DegreeSensitive } = require('./DegreeSensitive');
+			const degreeSensitive = new DegreeSensitive({
+				game: this.game,
+				lowDegree: false,
+			});
+			enemyAnticipationNode = this.game.graph.getNode(
+				degreeSensitive.getMove(),
+			);
 		} else if (this.anticipation === GreedyAnticipation.Greedy) {
 			// anticipating enemy to play a greedy strategy
 			// create a new Greedy AI with the enemy as the player

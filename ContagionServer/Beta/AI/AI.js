@@ -11,7 +11,7 @@ const Strategies = {
 	DSHigh: 'DSHigh',
 	Mirror: 'Mirror',
 	Equilibrium: 'Equilibrium',
-	HighGreedy: 'HighGreedy',
+	//HighGreedy: 'HighGreedy',
 };
 
 class AI {
@@ -64,8 +64,8 @@ class AI {
 				return this.aiDegreeSensitive(false);
 			case Strategies.Equilibrium:
 				return this.aiEquilibrium();
-			case Strategies.HighGreedy:
-				return this.aiHighGreedy();
+			// case Strategies.HighGreedy:
+			// 	return this.aiHighGreedy();
 			default:
 				return this.aiRandom();
 		}
