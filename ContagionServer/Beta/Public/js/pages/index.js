@@ -220,8 +220,7 @@ function initChartConfigs() {
 							labelString: 'Vote Share (Average)',
 						},
 						ticks: {
-							beginAtZero: true,
-							max: 1,
+							beginAtZero: false,
 						},
 					},
 				],
@@ -294,11 +293,10 @@ function initChartConfigs() {
 					{
 						scaleLabel: {
 							display: true,
-							labelString: 'Game Win Ratio Difference',
+							labelString: 'Game Win Percentage Gain (%)',
 						},
 						ticks: {
 							beginAtZero: true,
-							max: 0.5,
 						},
 					},
 				],
@@ -461,10 +459,15 @@ function populateAllStratChartsWithTestData(strategy) {
 				correctedMatchup.p1WinRatio = matchup.p2WinRatio;
 				correctedMatchup.p2WinRatio = matchup.p1WinRatio;
 			}
-			// calculate win ratio edge (how much more the p2 strategy wins vs the strategy)
-			correctedMatchup.p2WinRatioEdge = parseFloat(
-				correctedMatchup.p2WinRatio - correctedMatchup.p1WinRatio,
-			).toFixed(3);
+			// percentage gain playing p2 strategy vs strategy (how much more the p2 strategy wins vs the strategy)
+			// e.g: 'p2 strategy wins 200% more games than random when head to head'
+			correctedMatchup.p2WinRatioEdge = Math.round(
+				parseFloat(
+					(correctedMatchup.p2WinRatio -
+						correctedMatchup.p1WinRatio) /
+						correctedMatchup.p1WinRatio,
+				) * 100,
+			);
 			matchups.push(correctedMatchup);
 		}
 	});
@@ -498,7 +501,7 @@ function populateAllStratChartsWithTestData(strategy) {
 	matchups.forEach((matchup, index) => {
 		// player 2 data
 		var dataset = {
-			label: `${matchup.p2Strategy} (${matchup.p2WinRatioEdge})`,
+			label: `${matchup.p2Strategy} (${matchup.p2WinRatioEdge}%)`,
 			borderColor: getStrategyColor(matchup.p2Strategy),
 			backgroundColor: getStrategyColor(matchup.p2Strategy),
 			data: [matchup.p2WinRatioEdge],
@@ -508,7 +511,7 @@ function populateAllStratChartsWithTestData(strategy) {
 	});
 
 	// change chart title
-	allStratWinRatioChartConfig.options.title.text = `All Strategies vs ${strategy} - Win Ratio Differences - ${matchups[0].gamesPlayed} games`;
+	allStratWinRatioChartConfig.options.title.text = `Game Win Percentage gain playing strategy X vs ${strategy} - ${matchups[0].gamesPlayed} games`;
 	// update chart
 	allStratWinRatioChart.update();
 }
