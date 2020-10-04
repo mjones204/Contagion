@@ -1,6 +1,7 @@
 const { Greedy, GreedyAnticipation } = require('./Greedy');
 const { DegreeSensitive } = require('./DegreeSensitive');
 const { Equilibirum } = require('./Equilibrium');
+const { MonteCarloTreeSearch } = require('./MonteCarloTreeSearch');
 
 const Strategies = {
 	Random: 'Random',
@@ -11,7 +12,7 @@ const Strategies = {
 	DSHigh: 'DSHigh',
 	Mirror: 'Mirror',
 	Equilibrium: 'Equilibrium',
-	//HighGreedy: 'HighGreedy',
+	MCTS: 'MCTS',
 };
 
 class AI {
@@ -64,8 +65,8 @@ class AI {
 				return this.aiDegreeSensitive(false);
 			case Strategies.Equilibrium:
 				return this.aiEquilibrium();
-			// case Strategies.HighGreedy:
-			// 	return this.aiHighGreedy();
+			case Strategies.MCTS:
+				return this.aiMCTS();
 			default:
 				return this.aiRandom();
 		}
@@ -97,19 +98,6 @@ class AI {
 		return greedy.getMove();
 	}
 
-	aiHighGreedy() {
-		// no neutral nodes in the network (all nodes are controlled by players)
-		if (this.game.allNodesAreControlled()) {
-			// play greedy strategy
-			return this.aiGreedy(GreedyAnticipation.None);
-		}
-		// there are still neutral nodes in the network
-		else {
-			// play high degree strategy
-			return this.aiDegreeSensitive(false);
-		}
-	}
-
 	aiDegreeSensitive(lowDegree) {
 		const degreeSensitive = new DegreeSensitive({
 			game: this.game,
@@ -124,6 +112,14 @@ class AI {
 			player: this.player,
 		});
 		return equilibrium.getMove();
+	}
+
+	aiMCTS() {
+		const mcts = new MonteCarloTreeSearch({
+			game: this.game,
+			player: this.player,
+		});
+		return mcts.getMove();
 	}
 }
 

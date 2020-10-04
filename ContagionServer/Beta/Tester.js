@@ -20,14 +20,15 @@ const start = () => {
 	// });
 	testManager.runAllMultipleGameTests({
 		testAllStrategies: false,
-		testStrategies: [Strategies.GreedyPredictsHigh],
-		gamesToRun: 10000,
+		testStrategies: [Strategies.MCTS],
+		gamesToRun: 1000,
 	});
 	// testManager.runAllMultipleGameTests({
 	// 	testAllStrategies: false,
 	// 	testStrategies: [Strategies.GreedyPredictsGreedy],
 	// 	gamesToRun: 10000,
 	// });
+	//testManager.runMultipleGameTest(Strategies.Random, Strategies.MCTS, 500);
 };
 
 const temp = () => {
