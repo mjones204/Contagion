@@ -153,12 +153,16 @@ class Greedy {
 
 		let highestAvg = -1;
 		let bestNode = null;
+		let lookaheadRounds = this.game.rounds; // lookahead to the end of the game
 		nodeControlProbabilities.forEach(({ node, controlProbabilities }) => {
-			// at the start we have control probabilities for the next round (current round + 1)
+			// at the start we already have control probabilities for the next round (current round + 1)
 			let projectedRound = this.game.round + 1;
-			// lookahead further up to round 11 (end of the game) (we play the 10th round)
-			projectedRound++;
-			while (projectedRound <= this.game.rounds + 1) {
+			// lookahead by lookaheadRounds or until the end of the game (whichever comes sooner) (we play the 10th round)
+			// note, the following code wont run unless lookaheadRounds >= 2
+			while (
+				projectedRound < this.game.round + lookaheadRounds &&
+				projectedRound < this.game.rounds + 1
+			) {
 				// for each node (the node which the token was placed), assign the calculated control probabilities to each node in the network
 				const lookaheadProbabilities = this.getLookaheadProbabilities(
 					controlProbabilities,
