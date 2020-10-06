@@ -145,7 +145,7 @@ class TestManager {
 		// run games
 		for (let g = 0; g < gamesToRun; g++) {
 			// console log every 1000 games
-			if (g > 0 && g % 10 === 0) {
+			if (g > 0 && g % 1000 === 0) {
 				console.log(`Games Completed: ${g}`);
 			}
 
