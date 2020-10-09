@@ -142,10 +142,19 @@ class TestManager {
 			p2AverageVoteShares: [],
 		};
 
+		let logInterval = 1000;
+		// shorter log interval for MCTS since it takes longer to run
+		if (
+			p1AiStrategy === Strategies.MCTS ||
+			p2AiStrategy === Strategies.MCTS
+		) {
+			logInterval = 10;
+		}
+
 		// run games
 		for (let g = 0; g < gamesToRun; g++) {
 			// console log every 1000 games
-			if (g > 0 && g % 1000 === 0) {
+			if (g > 0 && g % logInterval === 0) {
 				console.log(`Games Completed: ${g}`);
 			}
 

@@ -18,17 +18,17 @@ const start = () => {
 	// 	testStrategies: [Strategies.SimpleGreedy],
 	// 	gamesToRun: 10000,
 	// });
-	testManager.runAllMultipleGameTests({
-		testAllStrategies: false,
-		testStrategies: [Strategies.MCTS],
-		gamesToRun: 1000,
-	});
+	// testManager.runAllMultipleGameTests({
+	// 	testAllStrategies: false,
+	// 	testStrategies: [Strategies.MCTS],
+	// 	gamesToRun: 1000,
+	// });
 	// testManager.runAllMultipleGameTests({
 	// 	testAllStrategies: false,
 	// 	testStrategies: [Strategies.GreedyPredictsGreedy],
 	// 	gamesToRun: 10000,
 	// });
-	//testManager.runMultipleGameTest(Strategies.Random, Strategies.MCTS, 500);
+	testManager.runMultipleGameTest(Strategies.Random, Strategies.MCTS, 300);
 };
 
 const temp = () => {

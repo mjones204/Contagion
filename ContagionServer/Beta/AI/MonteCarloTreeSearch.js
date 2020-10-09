@@ -132,6 +132,12 @@ class MCGame {
 		return lastVoteShare;
 	}
 
+	getP1VoteShareAverage() {
+		let sum = 0;
+		this.state.p1VoteShares.forEach((vs) => (sum += vs));
+		return sum / this.state.p1VoteShares.length;
+	}
+
 	// returns list of valid moves given current game state
 	moves() {
 		const moves = [];
@@ -160,11 +166,11 @@ class MCGame {
 				this.state.gameOver = true;
 				// winner based on vote share
 				// player 1 wins
-				if (this.getP1VoteShare() > 0.5) {
+				if (this.getP1VoteShareAverage() > 0.5) {
 					this.state.winner = 1;
 				}
 				// player 2 wins
-				else if (this.getP1VoteShare() < 0.5) {
+				else if (this.getP1VoteShareAverage() < 0.5) {
 					this.state.winner = 2;
 				}
 				// draw
@@ -215,12 +221,6 @@ class MCTS {
 			this.game.setState(clonedState);
 
 			let selectedNode = this.selectNode(root);
-			//if selected node is terminal and we lost, make sure we never choose that move
-			if (this.game.gameOver()) {
-				if (this.game.winner() != 1 && this.game.winner() != -1) {
-					selectedNode.parent.wins = Number.MIN_SAFE_INTEGER;
-				}
-			}
 			let expandedNode = this.expandNode(selectedNode);
 			const winner = this.playout(expandedNode);
 
