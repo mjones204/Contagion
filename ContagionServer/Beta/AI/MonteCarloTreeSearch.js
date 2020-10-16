@@ -1,3 +1,5 @@
+const { DegreeSensitive } = require('./DegreeSensitive');
+
 class MCGame {
 	/*
 		nodeStates array:
@@ -19,12 +21,30 @@ class MCGame {
 			rounds: game.rounds,
 			gameOver: game.gameOver,
 			winner: -1,
+			originalGame: game,
+			highDegreeMoves: this.createHighDegreeMovesArray(game),
 		};
 		// since we may be 2nd to act, the enemy (p2) may have already submitted a move
 		// we aren't supposed to know this move yet so we can remove it
 		if (this.state.p1Moves.length < this.state.p2Moves.length) {
 			this.state.p2Moves.pop();
 		}
+	}
+
+	createHighDegreeMovesArray(game) {
+		const degreeSensitive = new DegreeSensitive({
+			game,
+			lowDegree: false,
+		});
+		// run high degree selection 10 times and create a move set with the results
+		let highDegreeMovesSet = new Set();
+		for (let i = 0; i < 10; i++) {
+			const move = degreeSensitive.getMove();
+			highDegreeMovesSet.add(move);
+		}
+		// convert set to array
+		const moves = [...highDegreeMovesSet];
+		return moves;
 	}
 
 	createNodeStatesFromGame(game, player) {
@@ -71,6 +91,8 @@ class MCGame {
 			rounds: this.state.rounds,
 			gameOver: this.state.gameOver,
 			winner: this.state.winner,
+			originalGame: this.state.originalGame,
+			highDegreeMoves: this.state.highDegreeMoves,
 		};
 	}
 
@@ -143,6 +165,15 @@ class MCGame {
 		const moves = [];
 		this.state.nodeStates.forEach((node, index) => moves.push(index));
 		return moves;
+		// // if player 2 hasn't made a move but player 1 has
+		// if (this.state.p2Moves.length < this.state.p1Moves.length) {
+		// 	// p2 only makes high degree moves
+		// 	return [...this.state.highDegreeMoves];
+		// }
+		// // p1 can make any move
+		// else {
+		// 	this.state.nodeStates.forEach((node, index) => moves.push(index));
+		// }
 	}
 
 	playMove(move) {
@@ -166,11 +197,11 @@ class MCGame {
 				this.state.gameOver = true;
 				// winner based on vote share
 				// player 1 wins
-				if (this.getP1VoteShareAverage() > 0.5) {
+				if (this.getP1VoteShare() > 0.5) {
 					this.state.winner = 1;
 				}
 				// player 2 wins
-				else if (this.getP1VoteShareAverage() < 0.5) {
+				else if (this.getP1VoteShare() < 0.5) {
 					this.state.winner = 2;
 				}
 				// draw
@@ -254,14 +285,17 @@ class MCTS {
 			}
 			const avgScore = child.score / child.visits;
 
+			//const avgWins = child.wins / child.visits;
+			const avgWins = child.wins;
+
 			// node with the most end-state wins gets prioritised
-			if (child.wins > maxWins) {
-				maxWins = child.wins;
+			if (avgWins > maxWins) {
+				maxWins = avgWins;
 				maxIndex = i;
 				maxAvgScore = avgScore;
 			}
 			// decider of which node to pick is the average score (vote share)
-			else if (child.wins == maxWins) {
+			else if (avgWins == maxWins) {
 				// node has higher score than current best so pick it
 				if (avgScore > maxAvgScore) {
 					maxIndex = i;
@@ -271,7 +305,7 @@ class MCTS {
 
 			sortedMoves.push({
 				move: possibleMoves[i],
-				wins: child.wins,
+				wins: avgWins,
 				avg_score: avgScore,
 			});
 		}
@@ -292,6 +326,7 @@ class MCTS {
 			}
 			return 0;
 		});
+		//console.log(sortedMoves);
 		//console.log("Sorted Moves:");
 		//console.log(sortedMoves);
 
@@ -375,7 +410,8 @@ class MCTS {
 	}
 
 	computeUCB(wi, ni, c, Ni) {
-		return wi / ni + c * Math.sqrt(Math.log(Ni) / ni);
+		//return wi / ni + c * Math.sqrt(Math.log(Ni) / ni);
+		return wi / ni + Math.sqrt((2 * Math.log(Ni)) / ni);
 	}
 }
 

@@ -28,7 +28,8 @@ const start = () => {
 	// 	testStrategies: [Strategies.GreedyPredictsGreedy],
 	// 	gamesToRun: 10000,
 	// });
-	testManager.runMultipleGameTest(Strategies.Random, Strategies.MCTS, 300);
+	//testManager.runMultipleGameTest(Strategies.Random, Strategies.MCTS, 300);
+	testManager.runMultipleGameTest(Strategies.Random, Strategies.MCTS, 2000);
 };
 
 const temp = () => {
