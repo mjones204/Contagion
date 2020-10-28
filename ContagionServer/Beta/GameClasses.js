@@ -1,5 +1,6 @@
 const uuidv4 = require('uuid/v4');
 const { AI, Strategies } = require('./AI/AI');
+const { Scoring, ScoringStrategies } = require('./Scoring');
 
 class Game {
 	constructor({
@@ -12,10 +13,10 @@ class Game {
 		playerScores = [],
 		playerVoteShares = [],
 		startTime = Date.now(),
-		lastRoundScoreMultiplier = 5,
 		autoRunAi = true,
 		gameOver = false,
 		gameManager = null,
+		scoringStrategy = ScoringStrategies.Uniform,
 	}) {
 		this.id = id;
 		this.players = players;
@@ -26,10 +27,10 @@ class Game {
 		this.playerScores = playerScores;
 		this.playerVoteShares = playerVoteShares;
 		this.startTime = startTime;
-		this.lastRoundScoreMultiplier = lastRoundScoreMultiplier;
 		this.autoRunAi = autoRunAi;
 		this.gameOver = gameOver;
 		this.gameManager = gameManager;
+		this.scoringStrategy = scoringStrategy;
 	}
 
 	hasHumanPlayer() {
@@ -199,13 +200,8 @@ class Game {
 
 	// gets the score for a single round based on number of nodes controlled
 	getScoreFromNodesControlled(nodesControlled, round) {
-		// 10 points for each node
-		let scoreForRound = nodesControlled * 10;
-		// applies multiplier bonus for the final round
-		if (round === this.rounds) {
-			scoreForRound *= this.lastRoundScoreMultiplier;
-		}
-		return scoreForRound;
+		const scoring = new Scoring(this.scoringStrategy);
+		return scoring.getScoreForRound(nodesControlled, round, this.rounds);
 	}
 
 	calculateVoteShares() {
