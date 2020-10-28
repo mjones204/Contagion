@@ -1,14 +1,6 @@
 const { TestManager } = require('./TestManager');
 const { Strategies } = require('./AI/AI');
-// const network = {
-// 	nodes: [0, 1, 2, 3, 4],
-// 	edges: [
-// 		[0, 1],
-// 		[0, 4],
-// 		[1, 3],
-// 		[1, 2],
-// 	],
-// };
+const { ScoringStrategies } = require('./Scoring');
 
 const start = () => {
 	const testManager = new TestManager();
@@ -19,9 +11,24 @@ const start = () => {
 	// 	gamesToRun: 10000,
 	// });
 	testManager.runAllMultipleGameTests({
-		testAllStrategies: false,
-		testStrategies: [Strategies.MCTS],
-		gamesToRun: 10000,
+		testAllStrategies: true,
+		scoringStrategy: ScoringStrategies.Uniform,
+		gamesToRun: 5000,
+	});
+	testManager.runAllMultipleGameTests({
+		testAllStrategies: true,
+		scoringStrategy: ScoringStrategies.EarlyIgnoredUniform,
+		gamesToRun: 5000,
+	});
+	testManager.runAllMultipleGameTests({
+		testAllStrategies: true,
+		scoringStrategy: ScoringStrategies.LastRound,
+		gamesToRun: 5000,
+	});
+	testManager.runAllMultipleGameTests({
+		testAllStrategies: true,
+		scoringStrategy: ScoringStrategies.EarlyWeighted,
+		gamesToRun: 5000,
 	});
 	// testManager.runAllMultipleGameTests({
 	// 	testAllStrategies: false,

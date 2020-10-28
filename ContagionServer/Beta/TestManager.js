@@ -1,7 +1,10 @@
 const { GameManager } = require('./GameManager');
 const { Strategies } = require('./AI/AI');
+const { ScoringStrategies } = require('./Scoring');
 const fs = require('fs');
 const path = require('path');
+
+const determineWinnerByVoteShare = false;
 
 // array of multiple game test results (strategy vs strategy)
 const multipleGameTestResultsPath =
@@ -54,6 +57,7 @@ class TestManager {
 	runAllMultipleGameTests({
 		testAllStrategies = true,
 		testStrategies = [],
+		scoringStrategy = ScoringStrategies.Uniform,
 		gamesToRun = 1000,
 	}) {
 		// keep pairs array so we dont run duplicate matchups
@@ -94,6 +98,7 @@ class TestManager {
 							strategy1,
 							strategy2,
 							gamesToRun,
+							scoringStrategy,
 						);
 					}
 				}
@@ -101,12 +106,18 @@ class TestManager {
 		}
 	}
 
-	runMultipleGameTestAndWriteToFile(p1AiStrategy, p2AiStrategy, gamesToRun) {
+	runMultipleGameTestAndWriteToFile(
+		p1AiStrategy,
+		p2AiStrategy,
+		gamesToRun,
+		scoringStrategy,
+	) {
 		// run test
 		const result = this.runMultipleGameTest(
 			p1AiStrategy,
 			p2AiStrategy,
 			gamesToRun,
+			scoringStrategy,
 		);
 		// save test result in new array
 		const results = [result];
@@ -116,7 +127,11 @@ class TestManager {
 		// ignore old test result if we have a new one
 		const oldResults = existingResults.filter(
 			(oldRes) =>
-				!results.some((res) => res.testName === oldRes.testName),
+				!results.some(
+					(res) =>
+						res.testName === oldRes.testName &&
+						res.scoringStrategy === oldRes.scoringStrategy,
+				),
 		);
 		// concat old and new results arrays
 		const allResults = [...oldResults, ...results];
@@ -124,7 +139,12 @@ class TestManager {
 		this.writeJsonToFile(allResults, multipleGameTestResultsPath);
 	}
 
-	runMultipleGameTest(p1AiStrategy, p2AiStrategy, gamesToRun = 1000) {
+	runMultipleGameTest(
+		p1AiStrategy,
+		p2AiStrategy,
+		gamesToRun,
+		scoringStrategy,
+	) {
 		console.log(
 			`Starting new multiple game test - ${p1AiStrategy} vs ${p2AiStrategy} for ${gamesToRun} games`,
 		);
@@ -134,12 +154,15 @@ class TestManager {
 			testName: `${p1AiStrategy}_vs_${p2AiStrategy}`,
 			p1Strategy: p1AiStrategy,
 			p2Strategy: p2AiStrategy,
+			scoringStrategy: scoringStrategy,
 			gamesPlayed: 0,
 			p1Wins: 0,
 			p2Wins: 0,
 			draws: 0,
 			p1AverageVoteShares: [],
 			p2AverageVoteShares: [],
+			p1AverageScores: [],
+			p2AverageScores: [],
 		};
 
 		let logInterval = 1000;
@@ -166,23 +189,47 @@ class TestManager {
 			}
 
 			// run game
-			const game = this.gm.newGame({ p1AiStrategy, p2AiStrategy });
+			const game = this.gm.newGame({
+				p1AiStrategy,
+				p2AiStrategy,
+				scoringStrategy,
+			});
 
 			// update results
 			const [p1, p2] = game.players;
 			results.gamesPlayed++;
-			// game is a draw
-			if (game.isDrawByVoteShare()) {
-				results.draws++;
+
+			// determine winner based on vote share
+			if (determineWinnerByVoteShare) {
+				// game is a draw
+				if (game.isDrawByVoteShare()) {
+					results.draws++;
+				}
+				// p1 won
+				else if (game.isWinningPlayerByVoteShare(p1)) {
+					results.p1Wins++;
+				}
+				// p2 won
+				else if (game.isWinningPlayerByVoteShare(p2)) {
+					results.p2Wins++;
+				}
 			}
-			// p1 won
-			else if (game.isWinningPlayerByVoteShare(p1)) {
-				results.p1Wins++;
+			// determine winner based on score
+			else {
+				// game is a draw
+				if (game.isDrawByScore()) {
+					results.draws++;
+				}
+				// p1 won
+				else if (game.isWinningPlayerByScore(p1)) {
+					results.p1Wins++;
+				}
+				// p2 won
+				else if (game.isWinningPlayerByScore(p2)) {
+					results.p2Wins++;
+				}
 			}
-			// p2 won
-			else if (game.isWinningPlayerByVoteShare(p2)) {
-				results.p2Wins++;
-			}
+
 			// average vote shares
 			if (results.p1AverageVoteShares.length === 0) {
 				// no vote share info has been added yet - init from the game
@@ -205,6 +252,25 @@ class TestManager {
 						cur + game.getPlayerVoteshares(p2)[i];
 				}
 			}
+
+			// average scores
+			if (results.p1AverageScores.length === 0) {
+				// no score info has been added yet - init from the game
+				results.p1AverageScores = game.getPlayerScores(p1).slice(0);
+				results.p2AverageScores = game.getPlayerScores(p2).slice(0);
+			} else {
+				// update sum (will be averaged after all games have finished)
+				for (let i = 0; i < results.p1AverageScores.length; i++) {
+					const cur = results.p1AverageScores[i];
+					results.p1AverageScores[i] =
+						cur + game.getPlayerScores(p1)[i];
+				}
+				for (let i = 0; i < results.p2AverageScores.length; i++) {
+					const cur = results.p2AverageScores[i];
+					results.p2AverageScores[i] =
+						cur + game.getPlayerScores(p2)[i];
+				}
+			}
 		}
 
 		// results processing
@@ -223,6 +289,15 @@ class TestManager {
 				);
 			},
 		);
+
+		// calculate average scores based on games played
+		results.p1AverageScores = results.p1AverageScores.map((avgScore) => {
+			return parseFloat((avgScore / results.gamesPlayed).toFixed(3));
+		});
+		results.p2AverageScores = results.p2AverageScores.map((avgScore) => {
+			return parseFloat((avgScore / results.gamesPlayed).toFixed(3));
+		});
+
 		// player win ratios
 		results.p1WinRatio = (results.p1Wins / results.gamesPlayed).toFixed(3);
 		results.p2WinRatio = (results.p2Wins / results.gamesPlayed).toFixed(3);
