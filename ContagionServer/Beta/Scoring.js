@@ -26,19 +26,23 @@ class Scoring {
 
 		switch (this.strategy) {
 			case ScoringStrategies.Uniform:
-				return getScoreUniform(nodesControlled, round, rounds);
+				return this.getScoreUniform(nodesControlled, round, rounds);
 			case ScoringStrategies.EarlyIgnoredUniform:
-				return getScoreEarlyIgnoredUniform(
+				return this.getScoreEarlyIgnoredUniform(
 					nodesControlled,
 					round,
 					rounds,
 				);
 			case ScoringStrategies.LastRound:
-				return getScoreLastRound(nodesControlled, round, rounds);
+				return this.getScoreLastRound(nodesControlled, round, rounds);
 			case ScoringStrategies.EarlyWeighted:
-				return getScoreEarlyWeighted(nodesControlled, round, rounds);
+				return this.getScoreEarlyWeighted(
+					nodesControlled,
+					round,
+					rounds,
+				);
 			default:
-				return getScoreUniform(nodesControlled, round, rounds);
+				return this.getScoreUniform(nodesControlled, round, rounds);
 		}
 	}
 
