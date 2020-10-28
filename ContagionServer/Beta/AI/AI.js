@@ -6,8 +6,6 @@ const { MonteCarloTreeSearch, MonteCarlo } = require('./MonteCarloTreeSearch');
 const Strategies = {
 	Random: 'Random',
 	SimpleGreedy: 'SimpleGreedy',
-	GreedyPredictsHigh: 'GreedyPredictsHigh',
-	GreedyPredictsGreedy: 'GreedyPredictsGreedy',
 	DSLow: 'DSLow',
 	DSHigh: 'DSHigh',
 	Mirror: 'Mirror',
@@ -56,10 +54,6 @@ class AI {
 				return this.aiMirror();
 			case Strategies.SimpleGreedy:
 				return this.aiGreedy(GreedyAnticipation.None);
-			case Strategies.GreedyPredictsHigh:
-				return this.aiGreedy(GreedyAnticipation.High);
-			case Strategies.GreedyPredictsGreedy:
-				return this.aiGreedy(GreedyAnticipation.Greedy);
 			case Strategies.DSLow:
 				return this.aiDegreeSensitive(true);
 			case Strategies.DSHigh:
