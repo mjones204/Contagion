@@ -160,6 +160,10 @@ class MCGame {
 		return sum / this.state.p1VoteShares.length;
 	}
 
+	isP1Turn() {
+		return this.state.p1Moves.length == this.state.p2Moves.length;
+	}
+
 	// returns list of valid moves given current game state
 	moves() {
 		const moves = [];
@@ -227,6 +231,8 @@ class MCTSNode {
 		this.parent = parent;
 		this.visits = 0;
 		this.wins = 0;
+		this.actualWins = 0;
+		this.p2ActualWins = 0;
 		this.score = 0;
 		this.numUnexpandedMoves = moves.length;
 		this.children = new Array(this.numUnexpandedMoves).fill(null); //temporary store move for debugging purposes
@@ -255,20 +261,21 @@ class MCTS {
 			let expandedNode = this.expandNode(selectedNode);
 			const winner = this.playout(expandedNode);
 
-			let reward;
-			// draw
-			if (winner == -1) {
-				reward = 0;
-			}
-			// win
-			else if (winner == 1) {
-				reward = 1;
-			}
-			// lost
-			else {
-				reward = -1;
-			}
 			const score = this.game.getP1VoteShare();
+			let reward = score - 0.5;
+			// // draw
+			// if (winner == -1) {
+			// 	reward = 0;
+			// }
+			// // win
+			// else if (winner == 1) {
+			// 	reward = 1;
+			// }
+			// // lost
+			// else {
+			// 	reward = -1;
+			// }
+
 			this.backprop(expandedNode, reward, score);
 		}
 
@@ -285,8 +292,8 @@ class MCTS {
 			}
 			const avgScore = child.score / child.visits;
 
-			//const avgWins = child.wins / child.visits;
-			const avgWins = child.wins;
+			const avgWins = child.wins / child.visits;
+			//const avgWins = child.wins;
 
 			// node with the most end-state wins gets prioritised
 			if (avgWins > maxWins) {
@@ -309,50 +316,41 @@ class MCTS {
 				avg_score: avgScore,
 			});
 		}
-		sortedMoves.sort((a, b) => {
-			if (a.wins < b.wins) {
-				return -1;
-			}
-			if (a.wins > b.wins) {
-				return 1;
-			}
-			// a wins equal to b wins
-			// decide by score (vote share)
-			if (a.avg_score < b.avg_score) {
-				return -1;
-			}
-			if (a.avg_score > b.avg_score) {
-				return 1;
-			}
-			return 0;
-		});
 		//console.log(sortedMoves);
 		//console.log("Sorted Moves:");
 		//console.log(sortedMoves);
 
 		this.game.setState(originalState);
+
+		// selected child
+		//const child = root.children[maxIndex];
+		//console.log(child);
+
 		return possibleMoves[maxIndex];
 	}
+
 	selectNode(root) {
 		const c = this.exploration;
 
 		while (root.numUnexpandedMoves == 0) {
-			let maxUBC = -Infinity;
+			let maxUCB = -Infinity;
 			let maxIndex = -1;
 			let Ni = root.visits;
 			for (let i in root.children) {
 				const child = root.children[i];
 				const ni = child.visits;
-				const wi = child.wins;
-				const ubc = this.computeUCB(wi, ni, c, Ni);
-				if (ubc > maxUBC) {
-					maxUBC = ubc;
+				let wi = child.actualWins;
+				if (!this.game.isP1Turn()) {
+					wi = child.p2ActualWins;
+				}
+				const ucb = this.computeUCB(wi, ni, c, Ni);
+				if (ucb > maxUCB) {
+					maxUCB = ucb;
 					maxIndex = i;
 				}
 			}
 			const moves = this.game.moves();
 			this.game.playMove(moves[maxIndex]);
-
 			root = root.children[maxIndex];
 			if (this.game.gameOver()) {
 				return root;
@@ -389,6 +387,12 @@ class MCTS {
 		while (node != null) {
 			node.visits += 1;
 			node.wins += reward;
+			if (reward > 0) {
+				node.actualWins++;
+			}
+			if (reward < 0) {
+				node.p2ActualWins++;
+			}
 			node.score += score;
 			node = node.parent;
 		}
@@ -415,6 +419,86 @@ class MCTS {
 	}
 }
 
+class MCTSNode_simple {
+	constructor() {
+		this.visits = 0;
+		this.score = 0;
+		this.wins = 0;
+	}
+}
+
+class MCTS_simple {
+	constructor(game, player, iterations = 500) {
+		this.game = game;
+		this.player = player;
+		this.iterations = iterations;
+	}
+
+	selectMove() {
+		const originalState = this.game.getState();
+		const moves = this.game.moves();
+		const childNodes = [];
+
+		// for each possible move
+		for (let m = 0; m < moves.length; m++) {
+			const child = new MCTSNode_simple();
+			// playout the game with this move for i iterations
+			for (let i = 0; i < this.iterations; i++) {
+				// restores game state to original
+				this.game.setState(originalState);
+				const clonedState = this.game.cloneState();
+				this.game.setState(clonedState);
+
+				// play this move
+				this.game.playMove(moves[m]);
+
+				// playout the game with random moves
+				while (!this.game.gameOver()) {
+					const randomChoice = Math.floor(
+						Math.random() * moves.length,
+					);
+					this.game.playMove(moves[randomChoice]);
+				}
+
+				// update node scores
+				const p1Score = this.game.getP1VoteShare();
+				const nodeScore = p1Score - 0.5;
+				child.score += nodeScore;
+				child.visits++;
+				if (child.score > 0) {
+					child.wins++;
+				}
+			}
+			childNodes.push(child);
+		}
+
+		// all moves have been tried
+		// pick the move with the most wins
+		let mostWins = -Infinity;
+		let highestScore = -Infinity;
+		let bestChildIndex = -1;
+		childNodes.forEach((child, i) => {
+			// select the node with the most wins
+			if (child.wins > mostWins) {
+				mostWins = child.wins;
+				highestScore = child.score;
+				bestChildIndex = i;
+			}
+			// tied wins are settled by score
+			else if (child.wins == mostWins) {
+				if (child.score > highestScore) {
+					highestScore = child.score;
+					bestChildIndex = i;
+				}
+			}
+		});
+
+		// reset the game
+		this.game.setState(originalState);
+		// return the best move
+		return moves[bestChildIndex];
+	}
+}
 class MonteCarloTreeSearch {
 	constructor({ game, player, iterations = 5000 }) {
 		this.game = game;
@@ -432,4 +516,22 @@ class MonteCarloTreeSearch {
 	}
 }
 
+class MonteCarlo {
+	constructor({ game, player, iterations = 3000 }) {
+		this.game = game;
+		this.player = player;
+		this.iterations = iterations;
+	}
+
+	getMove() {
+		// convert game into reduced format so monte carlo can run more efficiently
+		const mcGame = new MCGame();
+		mcGame.setStateFromGame(this.game, this.player);
+		const player = new MCTS_simple(mcGame, 1, this.iterations);
+		const move = player.selectMove();
+		return move;
+	}
+}
+
 exports.MonteCarloTreeSearch = MonteCarloTreeSearch;
+exports.MonteCarlo = MonteCarlo;

@@ -1,7 +1,7 @@
 const { Greedy, GreedyAnticipation } = require('./Greedy');
 const { DegreeSensitive } = require('./DegreeSensitive');
 const { Equilibirum } = require('./Equilibrium');
-const { MonteCarloTreeSearch } = require('./MonteCarloTreeSearch');
+const { MonteCarloTreeSearch, MonteCarlo } = require('./MonteCarloTreeSearch');
 
 const Strategies = {
 	Random: 'Random',
@@ -13,6 +13,7 @@ const Strategies = {
 	Mirror: 'Mirror',
 	Equilibrium: 'Equilibrium',
 	MCTS: 'MCTS',
+	MonteCarlo: 'MonteCarlo',
 };
 
 class AI {
@@ -67,6 +68,8 @@ class AI {
 				return this.aiEquilibrium();
 			case Strategies.MCTS:
 				return this.aiMCTS();
+			case Strategies.MonteCarlo:
+				return this.aiMonteCarlo();
 			default:
 				return this.aiRandom();
 		}
@@ -120,6 +123,33 @@ class AI {
 			player: this.player,
 		});
 		return mcts.getMove();
+	}
+
+	aiMonteCarlo() {
+		const mc = new MonteCarlo({
+			game: this.game,
+			player: this.player,
+		});
+		return mc.getMove();
+	}
+
+	aiMonteCarloTemp() {
+		// get enemy move from monte carlo
+		const enemy = this.game.getEnemyPlayer(this.player);
+		const mcEnemy = new MonteCarlo({
+			game: this.game,
+			player: enemy,
+			iterations: 1500,
+		});
+		const enemyMove = mcEnemy.getMove();
+		this.game.playerMove(enemy, enemyMove);
+
+		// get friendly move
+		const mcFriendly = new MonteCarlo({
+			game: this.game,
+			player: this.player,
+		});
+		return mcFriendly.getMove();
 	}
 }
 

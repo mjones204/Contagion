@@ -150,6 +150,13 @@ class TestManager {
 		) {
 			logInterval = 10;
 		}
+		// even shorter log intervals for monte carlo (brute force) strategies
+		if (
+			p1AiStrategy === Strategies.MonteCarlo ||
+			p2AiStrategy === Strategies.MonteCarlo
+		) {
+			logInterval = 1;
+		}
 
 		// run games
 		for (let g = 0; g < gamesToRun; g++) {
