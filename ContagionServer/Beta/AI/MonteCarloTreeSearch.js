@@ -240,7 +240,7 @@ class MCTSNode {
 }
 
 class MCTS {
-	constructor(game, player, iterations = 500, exploration = 1.41) {
+	constructor(game, player, iterations = 2500, exploration = 1.41) {
 		this.game = game;
 		this.player = player;
 		this.iterations = iterations;
@@ -500,7 +500,7 @@ class MCTS_simple {
 	}
 }
 class MonteCarloTreeSearch {
-	constructor({ game, player, iterations = 5000 }) {
+	constructor({ game, player, iterations = 2500 }) {
 		this.game = game;
 		this.player = player;
 		this.iterations = iterations;
