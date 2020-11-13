@@ -1,5 +1,6 @@
 const { Game, Player, Graph } = require('./GameClasses');
 const { AI, Strategies } = require('./AI/AI');
+const { Scoring, ScoringStrategies } = require('./Scoring');
 const { Database } = require('./Database');
 const Message = require('./Message');
 
@@ -62,6 +63,7 @@ class GameManager {
 		p2AiStrategy = Strategies.Random,
 		p1Ws = null,
 		p2Ws = null,
+		scoringStrategy = ScoringStrategies.Uniform,
 	}) {
 		let topology = this.getRandomTopology();
 		if (topologyId === undefined) {
@@ -99,6 +101,7 @@ class GameManager {
 			players,
 			graph,
 			topologyId,
+			scoringStrategy,
 			gameManager: this, // required so that games can request the server to update clients
 		});
 		game.beginRound(); // gives players their tokens and inits scores
