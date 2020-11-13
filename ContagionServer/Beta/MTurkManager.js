@@ -11,28 +11,49 @@ class MTurkManager {
 		if (this.database === null) {
 			this.database = new Database();
 		}
+
+		// for judging player score performance
+		// values are determined by averaging final scores of Random, DSHigh, and SimpleGreedy on 'All Strategies vs X Strategy' chart
+		// lower band when a player score is comparable with DSHigh performance, upper band is when comparable with SimpleGreedy performance
+		this.scoreRewardBands = { lower: 875, upper: 1025 };
+
+		/*
+			Old AI reward bands based on the strategy the AI opponent is playing
+			Random: [1035, 1181],
+			DSHigh: [863, 1030],
+			SimpleGreedy: [722, 865],
+		*/
 	}
 
-	calculateMTurkRewardForGame(score, win) {
-		const MTURK_WIN_REWARD = 0.05;
-		const MTURK_MIN_SCORE_REWARD = 0.03;
-		const MTURK_MAX_SCORE_REWARD = 0.2;
+	calculateMTurkRewardForGame(score, win, ratioControlled) {
+		// each game completed is rewarded with 10p
+		let reward = 0.1;
 
-		if (score <= 0) {
-			return 0;
+		// 1p extra per 10% influence up to 40%
+		if (ratioControlled >= 0.1) {
+			reward += 0.01;
+		}
+		if (ratioControlled >= 0.2) {
+			reward += 0.01;
+		}
+		if (ratioControlled >= 0.3) {
+			reward += 0.01;
+		}
+		if (ratioControlled >= 0.4) {
+			reward += 0.01;
 		}
 
-		let reward = 0;
-		// scale the score to a monetary value
-		reward += this.convertRange(
-			score,
-			[1, 3500],
-			[MTURK_MIN_SCORE_REWARD, MTURK_MAX_SCORE_REWARD],
-		);
-
-		// winner bonus
 		if (win) {
-			reward += MTURK_WIN_REWARD;
+			// if the player wins they are rewarded with 5p bonus
+			reward += 0.05;
+			// 5p bonus if player score exceeds the lower band (they are playing approx as good as a DSHigh strategy)
+			if (score >= this.scoreRewardBands.lower) {
+				reward += 0.05;
+			}
+			// 5p bonus if player score exceeds the upper band (they are playing appox as good as a SimpleGreedy strategy)
+			if (score >= this.scoreRewardBands.upper) {
+				reward += 0.05;
+			}
 		}
 		return reward;
 	}
@@ -55,11 +76,20 @@ class MTurkManager {
 		// for each game, get the round information
 		for (let i = 0; i < games.length; i++) {
 			const game = games[i];
+			const p1Id = game.player_one_id.trim();
+			const p2Id = game.player_two_id.trim();
+			let aiType = '';
 			// determine whether we are p1 or p2 based on our userID
 			let isPlayerOne = false;
-			if (game.player_one_id.trim() == playerId) {
+			if (p1Id == playerId) {
 				isPlayerOne = true;
+				aiType = p2Id;
+			} else {
+				aiType = p1Id;
 			}
+			// cut out the 'AI' prefix from aiType
+			aiType = aiType.substring(2);
+
 			const gameID = game.game_id.trim();
 			// get rounds info of game
 			const rounds = await this.database.getAllRoundsInfoForGame(gameID);
@@ -68,6 +98,7 @@ class MTurkManager {
 			if (rounds.length === 10) {
 				let ourScore = 0;
 				let opponentScore = 0;
+				let ratioControlled = 0;
 				for (let r = 0; r < rounds.length; r++) {
 					const round = rounds[r];
 					// build node arrays
@@ -106,8 +137,14 @@ class MTurkManager {
 						opponentNodes.length,
 						round.round_number,
 					);
+
+					// calculate ratio of nodes controlled by requesting player
+					ratioControlled =
+						ourNodes.length /
+						(ourNodes.length + opponentNodes.length);
 				}
-				// calculate winner based on scores
+
+				// calculate winner based on scores and nodes controlled
 				let winner = false;
 				if (ourScore > opponentScore) {
 					winner = true;
@@ -116,10 +153,11 @@ class MTurkManager {
 				const gameReward = this.calculateMTurkRewardForGame(
 					ourScore,
 					winner,
+					ratioControlled,
 				);
 				// set info vars
 				info.gamesPlayed++;
-				console.log('info.gamesPlayed', info.gamesPlayed);
+				//console.log('info.gamesPlayed', info.gamesPlayed);
 				if (winner) {
 					info.gamesWon++;
 				}
