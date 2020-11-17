@@ -11,7 +11,7 @@ const Strategies = {
 	Mirror: 'Mirror',
 	Equilibrium: 'Equilibrium',
 	MCTS: 'MCTS',
-	MonteCarlo: 'MonteCarlo',
+	//MonteCarlo: 'MonteCarlo',
 };
 
 class AI {
