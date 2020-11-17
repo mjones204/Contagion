@@ -20,6 +20,23 @@
 				style="min-width: 950px; margin-bottom: 35px"
 			>
 				<div class="content">
+					<div class="center aligned header">Scoring Function</div>
+				</div>
+				<div class="center aligned content">
+					<select
+						name="scoring_function"
+						id="scoring_function_dropdown"
+						onchange="selectStrategy()"
+						style="margin-right: 6px"
+					></select>
+				</div>
+			</div>
+
+			<div
+				class="ui centered raised card"
+				style="min-width: 950px; margin-bottom: 35px"
+			>
+				<div class="content">
 					<div class="center aligned header">
 						Strategy vs Strategy
 					</div>
@@ -51,6 +68,17 @@
 						</div>
 						<canvas
 							id="canvas"
+							style="
+								display: inline-block;
+								width: 900px;
+								height: 450px;
+							"
+							width="900"
+							height="450"
+							class="chartjs-render-monitor"
+						></canvas>
+						<canvas
+							id="canvas_5"
 							style="
 								display: inline-block;
 								width: 900px;
@@ -116,6 +144,18 @@
 							class="chartjs-render-monitor"
 						></canvas>
 						<canvas
+							id="canvas_6"
+							style="
+								display: inline-block;
+								width: 900px;
+								height: 450px;
+								margin-bottom: 60px;
+							"
+							width="900"
+							height="450"
+							class="chartjs-render-monitor"
+						></canvas>
+						<canvas
 							id="canvas_4"
 							style="
 								display: inline-block;
@@ -136,3 +176,65 @@
 		<script src="/js/pages/index.js"></script>
 	</body>
 </html>
+
+<label for="consent_1"
+	>The nature, aims and risks of the research have been explained to me. I
+	have read and understood the Information for Participants and understand
+	what is expected of me. </label
+><br />
+<input type="checkbox" name="consent" id="consent_1" />
+<br />
+<label for="consent_2"
+	>I understand that if I decide at any time during the research that I no
+	longer wish to participate in this project, I can notify the researchers
+	involved and be withdrawn from it immediately without having to give a
+	reason. I also understand that I may be withdrawn from it at any time, and
+	that in neither case will this be held against me in subsequent dealings
+	with the Ministry of Defence. </label
+><br />
+<input type="checkbox" name="consent" id="consent_2" />
+<br />
+<label for="consent_3"
+	>I consent to the processing of my personal information for the purposes of
+	this research study. I understand that such information will be treated as
+	strictly confidential and handled in accordance with the provisions of the
+	Data Protection Act 2018. </label
+><br />
+<input type="checkbox" name="consent" id="consent_3" />
+<br />
+<label for="consent_4"
+	>I agree to volunteer as a participant for the study described in the
+	information sheet (Participant Information Sheet v2) and give full consent. </label
+><br />
+<input type="checkbox" name="consent" id="consent_4" />
+<br />
+<label for="consent_5"
+	>This consent is specific to the particular study described in the
+	Information for Participants attached and shall not be taken to imply my
+	consent to participate in any subsequent study or deviation from that
+	detailed here. </label
+><br />
+<input type="checkbox" name="consent" id="consent_5" />
+<br />
+<label for="consent_6"
+	>I understand that in the event of my sustaining injury, illness or death as
+	a direct result of participating as a volunteer in Ministry of Defence
+	research, I or my dependants may enter a claim with the Ministry of Defence
+	for compensation under the provisions of the no-fault compensation scheme,
+	details of which are attached. </label
+><br />
+<input type="checkbox" name="consent" id="consent_6" />
+<br />
+<label for="consent_7"
+	>I understand the compensation arrangements that have been provided. </label
+><br />
+<input type="checkbox" name="consent" id="consent_7" />
+<br />
+<label for="consent_8"
+	>I agree that the research project named above has been explained to me to
+	my satisfaction and I agree to take part in the study. I have read both the
+	notes written above and the Information for Participants about the project,
+	and understand what the research study involves. </label
+><br />
+<input type="checkbox" name="consent" id="consent_8" />
+<br />

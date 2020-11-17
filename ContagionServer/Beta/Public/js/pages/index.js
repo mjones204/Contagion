@@ -2,15 +2,21 @@
 let testData = [];
 // colors
 let strategyColors = {};
+// scoring function
+let scoringFunction = 'Uniform';
 // charts
 let stratVoteShareChart;
+let stratScoringChart;
 let stratWinRatioChart;
 let allStratVoteShareChart;
+let allStratScoringChart;
 let allStratWinRatioChart;
 // chart configs
 let stratVoteShareChartConfig;
+let stratScoringChartConfig;
 let stratWinRatioChartConfig;
 let allStratVoteShareChartConfig;
+let allStratScoringChartConfig;
 let allStratWinRatioChartConfig;
 
 window.onload = function () {
@@ -21,6 +27,8 @@ window.onload = function () {
 			testData = json;
 			// assign colours to strategies
 			assignColors();
+			// populate scoring function dropdown
+			populateScoringFunctionDropdown();
 			// populate selection dropdowns
 			populateStrategySelectionDropdowns();
 			// populate charts
@@ -39,6 +47,12 @@ window.onload = function () {
 				ctx_4,
 				allStratWinRatioChartConfig,
 			);
+			// scoring strat v strat
+			var ctx_5 = document.getElementById('canvas_5').getContext('2d');
+			stratScoringChart = new Chart(ctx_5, stratScoringChartConfig);
+			// scoring all strats
+			var ctx_6 = document.getElementById('canvas_6').getContext('2d');
+			allStratScoringChart = new Chart(ctx_6, allStratScoringChartConfig);
 			populateStratChartsWithTestData('Random', 'Random');
 			populateAllStratChartsWithTestData('Random');
 		});
@@ -100,6 +114,50 @@ function initChartConfigs() {
 						ticks: {
 							beginAtZero: true,
 							max: 1,
+						},
+					},
+				],
+			},
+		},
+	};
+
+	// scoring chart config
+	stratScoringChartConfig = {
+		type: 'line',
+		data: {
+			labels: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+			datasets: [],
+		},
+		options: {
+			responsive: false,
+			title: {
+				display: true,
+				text: 'Chart.js Line Chart - Stacked Area',
+			},
+			tooltips: {
+				mode: 'index',
+			},
+			hover: {
+				mode: 'index',
+			},
+			scales: {
+				xAxes: [
+					{
+						scaleLabel: {
+							display: true,
+							labelString: 'Round Number',
+						},
+					},
+				],
+				yAxes: [
+					{
+						stacked: false,
+						scaleLabel: {
+							display: true,
+							labelString: 'Score (Average)',
+						},
+						ticks: {
+							beginAtZero: true,
 						},
 					},
 				],
@@ -228,6 +286,49 @@ function initChartConfigs() {
 		},
 	};
 
+	// scoring chart config
+	allStratScoringChartConfig = {
+		type: 'line',
+		data: {
+			labels: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+			datasets: [],
+		},
+		options: {
+			responsive: false,
+			title: {
+				display: true,
+				text: 'Chart.js Line Chart - Stacked Area',
+			},
+			tooltips: {
+				mode: 'index',
+			},
+			hover: {
+				mode: 'index',
+			},
+			scales: {
+				xAxes: [
+					{
+						scaleLabel: {
+							display: true,
+							labelString: 'Round Number',
+						},
+					},
+				],
+				yAxes: [
+					{
+						scaleLabel: {
+							display: true,
+							labelString: 'Score (Average)',
+						},
+						ticks: {
+							beginAtZero: false,
+						},
+					},
+				],
+			},
+		},
+	};
+
 	// outcome bar chart config
 	var allStratWinRatioChartData = {
 		labels: [''],
@@ -306,6 +407,7 @@ function initChartConfigs() {
 }
 
 function selectStrategy() {
+	// get selected strategies
 	var strategy_1 = document.getElementById('strategy_dropdown_1').value;
 	var strategy_2 = document.getElementById('strategy_dropdown_2').value;
 	if (!strategy_1) {
@@ -314,7 +416,17 @@ function selectStrategy() {
 	if (!strategy_2) {
 		strategy_2 = 'Random';
 	}
+	// get selected scoring function
+	var sF = document.getElementById('scoring_function_dropdown').value;
+	if (!sF) {
+		sF = 'Uniform';
+	}
+	// set global var
+	scoringFunction = sF;
 	populateStratChartsWithTestData(strategy_1, strategy_2);
+
+	// to trigger all strat charts to change
+	selectAllStrategy();
 }
 
 function selectAllStrategy() {
@@ -341,6 +453,19 @@ function populateStrategySelectionDropdowns() {
 	document.getElementById('strategy_dropdown_all').innerHTML = content;
 }
 
+function populateScoringFunctionDropdown() {
+	// add strategy names to dropdowns
+	var strategyList = new Set();
+	testData.forEach((matchup) => {
+		strategyList.add(matchup.scoringStrategy);
+	});
+	var content = '';
+	strategyList.forEach((strategy) => {
+		content += `<option value="${strategy}">${strategy}</option>`;
+	});
+	document.getElementById('scoring_function_dropdown').innerHTML = content;
+}
+
 function populateStratChartsWithTestData(p1Strategy, p2Strategy) {
 	console.log(p1Strategy, p2Strategy);
 	var p1Color = window.chartColors.blue;
@@ -349,32 +474,39 @@ function populateStratChartsWithTestData(p1Strategy, p2Strategy) {
 
 	// lookup strategy matchup from test data
 	let matchupData;
-	testData.forEach((matchup) => {
-		if (
-			(matchup.p1Strategy === p1Strategy &&
-				matchup.p2Strategy === p2Strategy) ||
-			(matchup.p1Strategy === p2Strategy &&
-				matchup.p2Strategy === p1Strategy)
-		) {
-			if (!matchupData) {
-				let correctedMatchup = JSON.parse(JSON.stringify(matchup));
-				// need to swap the strategies so they match the dropdown order
-				if (matchup.p1Strategy !== p1Strategy) {
-					correctedMatchup.p1Strategy = matchup.p2Strategy;
-					correctedMatchup.p1Wins = matchup.p2Wins;
-					correctedMatchup.p1AverageVoteShares =
-						matchup.p2AverageVoteShares;
-					correctedMatchup.p2Strategy = matchup.p1Strategy;
-					correctedMatchup.p2Wins = matchup.p1Wins;
-					correctedMatchup.p2AverageVoteShares =
-						matchup.p1AverageVoteShares;
-					correctedMatchup.p1WinRatio = matchup.p2WinRatio;
-					correctedMatchup.p2WinRatio = matchup.p1WinRatio;
+	testData
+		.filter((obj) => obj.scoringStrategy === scoringFunction)
+		.forEach((matchup) => {
+			if (
+				(matchup.p1Strategy === p1Strategy &&
+					matchup.p2Strategy === p2Strategy) ||
+				(matchup.p1Strategy === p2Strategy &&
+					matchup.p2Strategy === p1Strategy)
+			) {
+				if (!matchupData) {
+					let correctedMatchup = JSON.parse(JSON.stringify(matchup));
+					// need to swap the strategies so they match the dropdown order
+					if (matchup.p1Strategy !== p1Strategy) {
+						correctedMatchup.p1Strategy = matchup.p2Strategy;
+						correctedMatchup.p1Wins = matchup.p2Wins;
+						correctedMatchup.p1AverageVoteShares =
+							matchup.p2AverageVoteShares;
+						correctedMatchup.p1AverageScores =
+							matchup.p2AverageScores;
+						correctedMatchup.p2Strategy = matchup.p1Strategy;
+						correctedMatchup.p2Wins = matchup.p1Wins;
+						correctedMatchup.p2AverageVoteShares =
+							matchup.p1AverageVoteShares;
+						correctedMatchup.p2AverageScores =
+							matchup.p1AverageScores;
+						correctedMatchup.p1WinRatio = matchup.p2WinRatio;
+						correctedMatchup.p2WinRatio = matchup.p1WinRatio;
+					}
+					matchupData = correctedMatchup;
 				}
-				matchupData = correctedMatchup;
 			}
-		}
-	});
+		});
+	// vote share chart
 	// player 1 data
 	var newDatasetP1 = {
 		label: matchupData.p1Strategy,
@@ -389,15 +521,39 @@ function populateStratChartsWithTestData(p1Strategy, p2Strategy) {
 		backgroundColor: p2Color,
 		data: matchupData.p2AverageVoteShares,
 	};
-
 	// add data
 	stratVoteShareChartConfig.data.datasets = [];
 	stratVoteShareChartConfig.data.datasets.push(newDatasetP1, newDatasetP2);
-
 	// change chart title
 	stratVoteShareChartConfig.options.title.text = `${matchupData.p1Strategy} vs ${matchupData.p2Strategy} - ${matchupData.gamesPlayed} games`;
 	// update chart
 	stratVoteShareChart.update();
+
+	// score chart
+	// player 1 data
+	var newScoreDatasetP1 = {
+		label: matchupData.p1Strategy,
+		borderColor: p1Color,
+		backgroundColor: p1Color,
+		data: matchupData.p1AverageScores,
+	};
+	// player 2 data
+	var newScoreDatasetP2 = {
+		label: matchupData.p2Strategy,
+		borderColor: p2Color,
+		backgroundColor: p2Color,
+		data: matchupData.p2AverageScores,
+	};
+	// add data
+	stratScoringChartConfig.data.datasets = [];
+	stratScoringChartConfig.data.datasets.push(
+		newScoreDatasetP1,
+		newScoreDatasetP2,
+	);
+	// change chart title
+	stratScoringChartConfig.options.title.text = `${matchupData.p1Strategy} vs ${matchupData.p2Strategy} - ${matchupData.scoringStrategy} Scoring - ${matchupData.gamesPlayed} games`;
+	// update chart
+	stratScoringChart.update();
 
 	// now populate win ratio bar chart
 	console.log('populating outcome chart, matchupData:', matchupData);
@@ -432,7 +588,7 @@ function populateStratChartsWithTestData(p1Strategy, p2Strategy) {
 	);
 
 	// change chart title
-	stratWinRatioChartConfig.options.title.text = `${matchupData.p1Strategy} vs ${matchupData.p2Strategy} - ${matchupData.gamesPlayed} games`;
+	stratWinRatioChartConfig.options.title.text = `${matchupData.p1Strategy} vs ${matchupData.p2Strategy} - ${matchupData.scoringStrategy} Scoring - ${matchupData.gamesPlayed} games`;
 	// update chart
 	stratWinRatioChart.update();
 }
@@ -440,38 +596,43 @@ function populateStratChartsWithTestData(p1Strategy, p2Strategy) {
 function populateAllStratChartsWithTestData(strategy) {
 	// lookup strategy matchup from test data
 	let matchups = [];
-	testData.forEach((matchup) => {
-		if (
-			matchup.p1Strategy === strategy ||
-			matchup.p2Strategy === strategy
-		) {
-			let correctedMatchup = JSON.parse(JSON.stringify(matchup));
-			// need to swap the strategies so p2 always has the non-selected strategy
-			if (matchup.p1Strategy !== strategy) {
-				correctedMatchup.p1Strategy = matchup.p2Strategy;
-				correctedMatchup.p1Wins = matchup.p2Wins;
-				correctedMatchup.p1AverageVoteShares =
-					matchup.p2AverageVoteShares;
-				correctedMatchup.p2Strategy = matchup.p1Strategy;
-				correctedMatchup.p2Wins = matchup.p1Wins;
-				correctedMatchup.p2AverageVoteShares =
-					matchup.p1AverageVoteShares;
-				correctedMatchup.p1WinRatio = matchup.p2WinRatio;
-				correctedMatchup.p2WinRatio = matchup.p1WinRatio;
+	testData
+		.filter((obj) => obj.scoringStrategy === scoringFunction)
+		.forEach((matchup) => {
+			if (
+				matchup.p1Strategy === strategy ||
+				matchup.p2Strategy === strategy
+			) {
+				let correctedMatchup = JSON.parse(JSON.stringify(matchup));
+				// need to swap the strategies so p2 always has the non-selected strategy
+				if (matchup.p1Strategy !== strategy) {
+					correctedMatchup.p1Strategy = matchup.p2Strategy;
+					correctedMatchup.p1Wins = matchup.p2Wins;
+					correctedMatchup.p1AverageVoteShares =
+						matchup.p2AverageVoteShares;
+					correctedMatchup.p1AverageScores = matchup.p2AverageScores;
+					correctedMatchup.p2Strategy = matchup.p1Strategy;
+					correctedMatchup.p2Wins = matchup.p1Wins;
+					correctedMatchup.p2AverageVoteShares =
+						matchup.p1AverageVoteShares;
+					correctedMatchup.p2AverageScores = matchup.p1AverageScores;
+					correctedMatchup.p1WinRatio = matchup.p2WinRatio;
+					correctedMatchup.p2WinRatio = matchup.p1WinRatio;
+				}
+				// percentage gain playing p2 strategy vs strategy (how much more the p2 strategy wins vs the strategy)
+				// e.g: 'p2 strategy wins 200% more games than random when head to head'
+				correctedMatchup.p2WinRatioEdge = Math.round(
+					parseFloat(
+						(correctedMatchup.p2WinRatio -
+							correctedMatchup.p1WinRatio) /
+							correctedMatchup.p1WinRatio,
+					) * 100,
+				);
+				matchups.push(correctedMatchup);
 			}
-			// percentage gain playing p2 strategy vs strategy (how much more the p2 strategy wins vs the strategy)
-			// e.g: 'p2 strategy wins 200% more games than random when head to head'
-			correctedMatchup.p2WinRatioEdge = Math.round(
-				parseFloat(
-					(correctedMatchup.p2WinRatio -
-						correctedMatchup.p1WinRatio) /
-						correctedMatchup.p1WinRatio,
-				) * 100,
-			);
-			matchups.push(correctedMatchup);
-		}
-	});
+		});
 
+	// vote share chart
 	// add data
 	allStratVoteShareChartConfig.data.datasets = [];
 	matchups.forEach((matchup, index) => {
@@ -486,11 +647,30 @@ function populateAllStratChartsWithTestData(strategy) {
 		// add dataset to graph
 		allStratVoteShareChartConfig.data.datasets.push(dataset);
 	});
-
 	// change chart title
 	allStratVoteShareChartConfig.options.title.text = `All Strategies vs ${strategy} - ${matchups[0].gamesPlayed} games`;
 	// update chart
 	allStratVoteShareChart.update();
+
+	// scoring chart
+	// add data
+	allStratScoringChartConfig.data.datasets = [];
+	matchups.forEach((matchup, index) => {
+		// player 2 data
+		var dataset = {
+			label: matchup.p2Strategy,
+			borderColor: getStrategyColor(matchup.p2Strategy),
+			backgroundColor: getStrategyColor(matchup.p2Strategy),
+			data: matchup.p2AverageScores,
+			fill: false,
+		};
+		// add dataset to graph
+		allStratScoringChartConfig.data.datasets.push(dataset);
+	});
+	// change chart title
+	allStratScoringChartConfig.options.title.text = `All Strategies vs ${strategy} - ${matchups[0].scoringStrategy} Scoring - ${matchups[0].gamesPlayed} games`;
+	// update chart
+	allStratScoringChart.update();
 
 	// sort by win ratio edge (i.e. how much more the p2 strategy wins vs the strategy)
 	matchups.sort((a, b) => b.p2WinRatioEdge - a.p2WinRatioEdge); // for descending sort
@@ -511,7 +691,7 @@ function populateAllStratChartsWithTestData(strategy) {
 	});
 
 	// change chart title
-	allStratWinRatioChartConfig.options.title.text = `Game Win Percentage gain playing strategy X vs ${strategy} - ${matchups[0].gamesPlayed} games`;
+	allStratWinRatioChartConfig.options.title.text = `Game Win Percentage gain playing strategy X vs ${strategy} - ${matchups[0].scoringStrategy} Scoring - ${matchups[0].gamesPlayed} games`;
 	// update chart
 	allStratWinRatioChart.update();
 }
