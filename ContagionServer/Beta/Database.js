@@ -113,6 +113,9 @@ class Database {
 
 	// adds a player's mturk completion code, returns the database lookup for confirmation of success
 	async addPlayerCompletionCode(playerId, timestamp, completionCode) {
+		if (Constants.DISABLE_DATABASE_WRITE) {
+			return;
+		}
 		const query = `INSERT INTO mturk_completion_table VALUES ('${timestamp}', '${playerId}', '${completionCode}');`;
 		await this.sendSqlQuery(query);
 		return await this.getPlayerCompletionCode(playerId);
