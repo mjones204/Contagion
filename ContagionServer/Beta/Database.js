@@ -18,6 +18,11 @@ class Database {
 			});
 			this.client.connect();
 			console.log('Connected to Database');
+			let writeAccessText = 'is enabled';
+			if (Constants.DISABLE_DATABASE_WRITE) {
+				writeAccessText = 'has been disabled - Database is read only';
+			}
+			console.log(`Database writing ${writeAccessText}`);
 		} catch (err) {
 			console.error('Error connecting to Database', err);
 		}
