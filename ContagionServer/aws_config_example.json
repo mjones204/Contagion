@@ -1,6 +1,0 @@
-{ 
-    "accessKeyId": "YOUR_ACCESS_ID", 
-    "secretAccessKey": "YOUR_SECRET_ACCESS_KEY", 
-    "region": "us-east-1",
-    "sslEnabled": "true"
-}

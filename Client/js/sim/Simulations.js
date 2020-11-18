@@ -5,8 +5,8 @@ I have made an attempt to refactor things into the overall Simulations class, bu
 
 //SIM DELARED AT 167
 function Simulations() {
-	Simulations.LocalMode = false;
-	Simulations.DebugMode = false;
+	Simulations.LocalMode = true;
+	Simulations.DebugMode = true;
 	Simulations.DrawPieCharts = false; // draw pie charts inside nodes to represent vote share
 	Simulations.EnablePieSpinners = false; // show pie spinners after each round
 	Simulations.Username = '';
@@ -99,25 +99,39 @@ function Simulations() {
 		try {
 			message = JSON.parse(message.data);
 		} catch (err) {
-			Simulations.connectedToServer = true;
-			console.log("Can't parse JSON:" + message.data);
+			if (message.data === 'Connected') {
+				console.log('Connected to server');
+				Simulations.connectedToServer = true;
+			} else {
+				console.log("Can't parse JSON:" + message.data);
+			}
 			return;
 		}
-		console.log(message.status);
+		console.log('Message Received: ' + message.status);
 		switch (message.status) {
 			case 'CONFIG_TOKEN':
-				console.log(message.payload.gameID);
 				Simulations.recievedConfig = message.payload;
-				console.log('CONFIG_TOKEN:', message.payload)
+				console.log('config', Simulations.recievedConfig);
 				break;
 			case 'DEFERRED_STATE_TOKEN':
 				console.log('FIRST Waiting for P2...');
 				break;
 			case 'UPDATE_STATE_TOKEN':
-				Simulations.handleUpdateState(message.payload);
+				// add some fake delay so AI is perceived as more human
+				const minDelay = 1;
+				const maxDelay = 1400;
+				Simulations.updateDelay =
+					Math.floor(Math.random() * (maxDelay - minDelay + 1)) +
+					minDelay;
+				setTimeout(function () {
+					Simulations.handleUpdateState(message.payload);
+				}, Simulations.updateDelay);
 				break;
 			case 'GAME_END_TOKEN':
-				Simulations.gameOver(message.payload);
+				// delay the game end by the amount the last update was delayed (so it doesn't overlap)
+				setTimeout(function () {
+					Simulations.gameOver(message.payload);
+				}, Simulations.updateDelay);
 				break;
 			case 'TIMER_TOKEN':
 				if (!Simulations.awaitingResponse) {
@@ -129,6 +143,7 @@ function Simulations() {
 				}
 				break;
 			case 'MTURK_INFO':
+				// delay the game end by the amount the last update was delayed (so it doesn't overlap)
 				console.log('Your MTurk Info: ');
 				console.log(message.payload);
 				Simulations.updateGameOverModalInformation(message.payload);
@@ -355,8 +370,6 @@ function Simulations() {
 	};
 
 	Simulations.formatConfig = function (config) {
-		console.log('CONFIG');
-		console.log(config);
 		var sim = self.sims[0];
 		var peeps = config.network.peeps;
 		var scaledPeeps = [];

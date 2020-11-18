@@ -1,26 +1,25 @@
 {
-	"name": "contagionserver",
+	"name": "ContagionGame",
 	"version": "1.0.0",
-	"description": "wow",
-	"main": "ContagionServer/server.js",
+	"description": "University of Southampton, Influence Maximisation Project",
+	"main": "Server/Server.js",
 	"scripts": {
-		"start": "node ContagionServer/server.js",
-		"beta": "node ContagionServer/Beta/Server.js",
-		"test": "node ContagionServer/Beta/Tester.js"
+		"start": "node Server/Server.js",
+		"test": "node Server/Tester.js"
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/EmpireOfTheTsun/Contagion.git"
+		"url": "git+https://github.com/mjonez/Contagion.git"
 	},
 	"keywords": [
-		"wow"
+		"research game"
 	],
 	"author": "me",
 	"license": "ISC",
 	"bugs": {
-		"url": "https://github.com/EmpireOfTheTsun/Contagion/issues"
+		"url": "https://github.com/mjonez/Contagion/issues"
 	},
-	"homepage": "https://github.com/EmpireOfTheTsun/Contagion#readme",
+	"homepage": "https://github.com/mjonez/Contagion#readme",
 	"dependencies": {
 		"async": "^2.6.1",
 		"aws-sdk": "2.713.0",

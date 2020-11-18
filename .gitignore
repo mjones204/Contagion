@@ -4,18 +4,12 @@
 *.ttf
 old config files/
 
-# AWS credentials config
-ContagionServer/aws_config.json
-
 # Dependency directories
 node_modules/
 jspm_packages/
 
-# AWS credentials config
-aws_config.json
-
 # Database credentials config
-db_config.json
+#db_config.json
 
 # Visual Studio Code directories
 .vscode/
@@ -26,8 +20,3 @@ db_config.json
 # js lint config
 .jshintrc
 .prettierrc
-test-results_less_old.json
-test-results.json
-
-# client beta directory
-ContagionClient(beta)/
