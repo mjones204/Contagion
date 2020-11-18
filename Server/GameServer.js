@@ -1,6 +1,6 @@
 const WebSocketServer = require('ws').Server;
 const uuidv4 = require('uuid/v4');
-const http = require('http');
+const https = require('https');
 const express = require('express');
 const { Database } = require('./Database');
 const { GameManager } = require('./GameManager');
@@ -19,7 +19,13 @@ class GameServer {
 	startServer(port) {
 		// web socket server
 		const app = express();
-		const webSocketServer = http.createServer(app);
+		const webSocketServer = https.createServer(
+			{
+				cert: fs.readFileSync('./SSL/server.crt'),
+				key: fs.readFileSync('./SSL/server.key'),
+			},
+			app,
+		);
 		webSocketServer.listen(port);
 		console.log('Game Server listening on port', port);
 

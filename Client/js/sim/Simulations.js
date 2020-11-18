@@ -5,8 +5,9 @@ I have made an attempt to refactor things into the overall Simulations class, bu
 
 //SIM DELARED AT 167
 function Simulations() {
-	Simulations.LocalMode = true;
-	Simulations.DebugMode = true;
+	Simulations.ServerURL = 'ws://161.35.47.67:5001/';
+	Simulations.LocalMode = false;
+	Simulations.DebugMode = false;
 	Simulations.DrawPieCharts = false; // draw pie charts inside nodes to represent vote share
 	Simulations.EnablePieSpinners = false; // show pie spinners after each round
 	Simulations.Username = '';
@@ -92,7 +93,7 @@ function Simulations() {
 	if (Simulations.LocalMode) {
 		Simulations.ServerLocation = 'ws://127.0.0.1:5001';
 	} else {
-		Simulations.ServerLocation = 'wss://stark-atoll-77422.herokuapp.com/';
+		Simulations.ServerLocation = Simulations.ServerURL;
 	}
 
 	parseEvent = function (message) {
