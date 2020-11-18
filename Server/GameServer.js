@@ -1,6 +1,7 @@
 const WebSocketServer = require('ws').Server;
 const uuidv4 = require('uuid/v4');
 const https = require('https');
+const fs = require('fs');
 const express = require('express');
 const { Database } = require('./Database');
 const { GameManager } = require('./GameManager');
