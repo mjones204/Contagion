@@ -1,8 +1,5 @@
 *.psd
 *.zip
-*.mp3
-*.ttf
-old config files/
 
 # Dependency directories
 node_modules/

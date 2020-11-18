@@ -10,19 +10,28 @@ class Database {
 				const dbConfig = require('./db_config.json');
 				process.env.DATABASE_URL = dbConfig.DATABASE_URL;
 			}
-			this.client = new Client({
-				connectionString: process.env.DATABASE_URL,
-				ssl: {
-					rejectUnauthorized: false,
-				},
-			});
-			this.client.connect();
-			console.log('Connected to Database');
-			let writeAccessText = 'is enabled';
-			if (Constants.DISABLE_DATABASE_WRITE) {
-				writeAccessText = 'has been disabled - Database is read only';
+			// database url not set in db_config.json
+			if(process.env.DATABASE_URL === "") {
+				console.log('ERROR: No database URL in db_config.json');
+				console.log('WARNING: Game may produce undesireable results if not connected to a database');
+				this.client = null;
 			}
-			console.log(`Database writing ${writeAccessText}`);
+			// database url is set - attempt to connect
+			else {
+				this.client = new Client({
+					connectionString: process.env.DATABASE_URL,
+					ssl: {
+						rejectUnauthorized: false,
+					},
+				});
+				this.client.connect();
+				console.log('Connected to Database');
+				let writeAccessText = 'is enabled';
+				if (Constants.DISABLE_DATABASE_WRITE) {
+					writeAccessText = 'has been disabled - Database is read only';
+				}
+				console.log(`Database writing ${writeAccessText}`);
+			}
 		} catch (err) {
 			console.error('Error connecting to Database', err);
 		}
@@ -32,8 +41,13 @@ class Database {
 		//Doesn't use the database if we're running locally/experiments
 		console.info(query);
 		try {
-			const res = await this.client.query(query);
-			return res;
+			if(this.client === null) {
+				throw Error('Error: Database not connected');
+			}
+			else {
+				const res = await this.client.query(query);
+				return res;
+			}
 		} catch (err) {
 			this.databaseFailure(query, err, game);
 			return false;
