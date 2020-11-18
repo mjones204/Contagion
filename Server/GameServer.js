@@ -2,6 +2,7 @@ const WebSocketServer = require('ws').Server;
 const uuidv4 = require('uuid/v4');
 const https = require('https');
 const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const { Database } = require('./Database');
 const { GameManager } = require('./GameManager');
@@ -18,12 +19,15 @@ class GameServer {
 	}
 
 	startServer(port) {
+		// ssl cert paths
+		const certPath = path.join(__dirname, '.', 'SSL', 'server.crt');
+		const keyPath = path.join(__dirname, '.', 'SSL', 'server.key');
 		// web socket server
 		const app = express();
 		const webSocketServer = https.createServer(
 			{
-				cert: fs.readFileSync('./SSL/server.crt'),
-				key: fs.readFileSync('./SSL/server.key'),
+				cert: fs.readFileSync(certPath),
+				key: fs.readFileSync(keyPath),
 			},
 			app,
 		);
