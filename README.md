@@ -12,14 +12,13 @@ npm install
 
 ## Run Server
 
-Navigate to ContagionServer directory and run the server using the following commands
+Use the following command
 
 ```bash
-cd ContagionServer/
-node server.js
+npm start
 ```
 
 ## Run Client
 
-Navigate to ContagionClient directory and open index.html in any modern web browser
+Navigate to the Client directory and open index.html in any modern web browser
 
