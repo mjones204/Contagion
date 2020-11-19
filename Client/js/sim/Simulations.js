@@ -5,7 +5,7 @@ I have made an attempt to refactor things into the overall Simulations class, bu
 
 //SIM DELARED AT 167
 function Simulations() {
-	Simulations.ServerURL = 'ws://161.35.47.67:5001/';
+	Simulations.ServerURL = 'wss://contagiongame.xyz:5001/';
 	Simulations.LocalMode = false;
 	Simulations.DebugMode = false;
 	Simulations.DrawPieCharts = false; // draw pie charts inside nodes to represent vote share

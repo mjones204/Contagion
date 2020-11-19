@@ -20,8 +20,8 @@ class GameServer {
 
 	startServer(port) {
 		// ssl cert paths
-		const certPath = path.join(__dirname, '.', 'SSL', 'server.crt');
-		const keyPath = path.join(__dirname, '.', 'SSL', 'server.key');
+		const certPath = path.join(__dirname, '.', 'SSL', 'cert.crt');
+		const keyPath = path.join(__dirname, '.', 'SSL', 'key.key');
 		// web socket server
 		const app = express();
 		const webSocketServer = https.createServer(
