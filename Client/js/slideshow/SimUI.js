@@ -128,7 +128,11 @@ function SimUI(container, color) {
 	};
 
 	SimUI.updateTimer = function (payload) {
-		var status = payload[0]; //NB: To be refactored out.
+		// disable timer for trials
+		if (true) {
+			return;
+		}
+		var status = payload[0]; // note this needs to be implemented serverside
 		var duration = Math.floor(payload[1]);
 		if (duration > 0) {
 			var text;
