@@ -106,7 +106,6 @@ class Database {
 		const [p1, p2] = game.players;
 		const flippedNodes = game.flippedNodes;
 		const p1LastMove = game.getPlayerLastMove(p1);
-		console.log(p1LastMove);
 		const p2LastMove = game.getPlayerLastMove(p2);
 		const p1LastMoveTime = game.getPlayerLastMoveTime(p1);
 		const p2LastMoveTime = game.getPlayerLastMoveTime(p2);
