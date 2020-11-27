@@ -11,9 +11,11 @@ class Database {
 				process.env.DATABASE_URL = dbConfig.DATABASE_URL;
 			}
 			// database url not set in db_config.json
-			if(process.env.DATABASE_URL === "") {
+			if (process.env.DATABASE_URL === '') {
 				console.log('ERROR: No database URL in db_config.json');
-				console.log('WARNING: Game may produce undesireable results if not connected to a database');
+				console.log(
+					'WARNING: Game may produce undesireable results if not connected to a database',
+				);
 				this.client = null;
 			}
 			// database url is set - attempt to connect
@@ -28,7 +30,8 @@ class Database {
 				console.log('Connected to Database');
 				let writeAccessText = 'is enabled';
 				if (Constants.DISABLE_DATABASE_WRITE) {
-					writeAccessText = 'has been disabled - Database is read only';
+					writeAccessText =
+						'has been disabled - Database is read only';
 				}
 				console.log(`Database writing ${writeAccessText}`);
 			}
@@ -41,10 +44,9 @@ class Database {
 		//Doesn't use the database if we're running locally/experiments
 		console.info(query);
 		try {
-			if(this.client === null) {
+			if (this.client === null) {
 				throw Error('Error: Database not connected');
-			}
-			else {
+			} else {
 				const res = await this.client.query(query);
 				return res;
 			}
@@ -104,6 +106,7 @@ class Database {
 		const [p1, p2] = game.players;
 		const flippedNodes = game.flippedNodes;
 		const p1LastMove = game.getPlayerLastMove(p1);
+		console.log(p1LastMove);
 		const p2LastMove = game.getPlayerLastMove(p2);
 		const p1LastMoveTime = game.getPlayerLastMoveTime(p1);
 		const p2LastMoveTime = game.getPlayerLastMoveTime(p2);
