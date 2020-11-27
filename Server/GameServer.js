@@ -1,5 +1,6 @@
 const WebSocketServer = require('ws').Server;
 const uuidv4 = require('uuid/v4');
+const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
@@ -7,6 +8,7 @@ const express = require('express');
 const { Database } = require('./Database');
 const { GameManager } = require('./GameManager');
 const { MTurkManager } = require('./MTurkManager');
+const Constants = require('./Constants');
 const Message = require('./Message');
 
 class GameServer {
@@ -24,13 +26,21 @@ class GameServer {
 		const keyPath = path.join(__dirname, '.', 'SSL', 'key.key');
 		// web socket server
 		const app = express();
-		const webSocketServer = https.createServer(
-			{
-				cert: fs.readFileSync(certPath),
-				key: fs.readFileSync(keyPath),
-			},
-			app,
-		);
+		let webSocketServer;
+		// https for when the server is deployed
+		if (Constants.USE_HTTPS) {
+			webSocketServer = https.createServer(
+				{
+					cert: fs.readFileSync(certPath),
+					key: fs.readFileSync(keyPath),
+				},
+				app,
+			);
+		}
+		// http for local development and testing
+		else {
+			webSocketServer = http.createServer(app);
+		}
 		webSocketServer.listen(port);
 		console.log('Game Server listening on port', port);
 
@@ -40,16 +50,20 @@ class GameServer {
 
 		// web socket connection code
 		wss.on('connection', (ws) => {
-			// assigns unique ID to the websocket so we can uniquely ID players
-			ws.id = uuidv4();
-			console.info('New Connection: ' + ws.id);
-			ws.on('message', (message) => {
-				//Parses messages received from the client
-				this.parseMessage(message, ws);
-			});
-			ws.on('end', () => {});
-			ws.send('Connected');
+			this.onConnection(ws);
 		});
+	}
+
+	onConnection(ws) {
+		// assigns unique ID to the websocket so we can uniquely ID players
+		ws.id = uuidv4();
+		console.info('New Connection: ' + ws.id);
+		ws.on('message', (message) => {
+			//Parses messages received from the client
+			this.parseMessage(message, ws);
+		});
+		ws.on('end', () => {});
+		ws.send('Connected');
 	}
 
 	parseMessage(message, ws) {
@@ -119,8 +133,14 @@ class GameServer {
 	}
 
 	submitMove(payload, ws) {
-		const [nodeIndex] = payload;
-		this.gameManager.submitMove(nodeIndex, ws);
+		const nodeIndex = payload[payload.length - 1];
+		if (isNaN(nodeIndex)) {
+			console.log(
+				'ERROR: Invalid move received from client (SUBMIT_MOVES_TOKEN)',
+			);
+		} else {
+			this.gameManager.submitMove(nodeIndex, ws);
+		}
 	}
 
 	registerHeartbeat(ws) {
