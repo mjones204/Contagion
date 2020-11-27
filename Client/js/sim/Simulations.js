@@ -111,8 +111,8 @@ function Simulations() {
 		console.log('Message Received: ' + message.status);
 		switch (message.status) {
 			case 'CONFIG_TOKEN':
-				Simulations.recievedConfig = message.payload;
-				console.log('config', Simulations.recievedConfig);
+				Simulations.receivedConfig = message.payload;
+				console.log('config', Simulations.receivedConfig);
 				break;
 			case 'DEFERRED_STATE_TOKEN':
 				console.log('FIRST Waiting for P2...');
@@ -262,7 +262,7 @@ function Simulations() {
 
 	//Sends request to server, then sets awaiting response flag to true, to halt certain other parts of code until the config is returned.
 	Simulations.requestConfig = function () {
-		if (Simulations.recievedConfig == null) {
+		if (Simulations.receivedConfig == null) {
 			if (Simulations.EmergencyAIMode) {
 				Simulations.sendServerMessageOverride(
 					new Message(Simulations.Username, 'EMERGENCY_AI'),
@@ -395,12 +395,12 @@ function Simulations() {
 		ConnectorCutter.TOKEN_PROTOCOL = config.tokenProtocol;
 		console.log(ConnectorCutter.TOKEN_PROTOCOL);
 		publish('sim/connection_update');
-		Simulations.recievedConfig = config;
+		Simulations.receivedConfig = config;
 		Simulations.awaitingResponse = false;
 	};
 
 	Simulations.getConfig = function () {
-		return Simulations.recievedConfig;
+		return Simulations.receivedConfig;
 	};
 
 	Simulations.startTimer = function (payload) {
@@ -458,7 +458,7 @@ function Simulations() {
 	};
 
 	Simulations.newGame = function () {
-		Simulations.recievedConfig = null; //clears old config so we can start new game
+		Simulations.receivedConfig = null; //clears old config so we can start new game
 		Simulations.requestConfig();
 		SimUI.RoundNumber = 0;
 		Simulations.PreviousMoves = [];
@@ -483,7 +483,7 @@ function Simulations() {
 
 	// Add Sims
 	self.add = function (config) {
-		if (Simulations.recievedConfig == null && !Simulations.TutorialMode) {
+		if (Simulations.receivedConfig == null && !Simulations.TutorialMode) {
 			Simulations.requestConfig();
 			setTimeout(
 				(config) => {
@@ -509,14 +509,14 @@ function Simulations() {
 			);
 		}
 		if (config == null) {
-			if (Simulations.recievedConfig == null) {
+			if (Simulations.receivedConfig == null) {
 				var testo = setTimeout(this.add, 500, config);
 				return;
 			}
-			config = cloneObject(Simulations.recievedConfig);
+			config = cloneObject(Simulations.receivedConfig);
 		}
 
-		if (Simulations.recievedConfig != null) {
+		if (Simulations.receivedConfig != null) {
 			Simulations.formatConfig(config);
 		}
 
