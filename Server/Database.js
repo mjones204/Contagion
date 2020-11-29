@@ -41,7 +41,6 @@ class Database {
 						}
 						console.log(`Database writing ${writeAccessText}`);
 					}
-					console.log(err);
 				});
 			}
 		} catch (err) {
