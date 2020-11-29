@@ -27,13 +27,22 @@ class Database {
 					},
 				});
 				this.client.connect();
-				console.log('Connected to Database');
-				let writeAccessText = 'is enabled';
-				if (Constants.DISABLE_DATABASE_WRITE) {
-					writeAccessText =
-						'has been disabled - Database is read only';
-				}
-				console.log(`Database writing ${writeAccessText}`);
+				this.client.query('SELECT NOW()', (err, res) => {
+					if (err) {
+						console.error('Error connecting to Database', err);
+						this.client = null;
+					} else {
+						// successful db connection
+						console.log('Connected to Database');
+						let writeAccessText = 'is enabled';
+						if (Constants.DISABLE_DATABASE_WRITE) {
+							writeAccessText =
+								'has been disabled - Database is read only';
+						}
+						console.log(`Database writing ${writeAccessText}`);
+					}
+					console.log(err);
+				});
 			}
 		} catch (err) {
 			console.error('Error connecting to Database', err);
